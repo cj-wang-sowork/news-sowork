@@ -1,0 +1,50 @@
+{
+  "query": "SELECT title, source, publishedAt FROM news_articles ORDER BY publishedAt DESC LIMIT 8;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT title, source, publishedAt FROM news_articles ORDER BY publishedAt DESC LIMIT 8;",
+  "rows": [
+    {
+      "title": "史詩怒火行動發威 美軍發射ATACMS精準重創伊朗機動飛彈與防空系統",
+      "source": "自由時報",
+      "publishedAt": "2026-03-01 19:44:58"
+    },
+    {
+      "title": "トランプ大統領“イランへの作戦は順調 新指導部と話し合う”",
+      "source": "NHK 日本語",
+      "publishedAt": "2026-03-01 19:43:08"
+    },
+    {
+      "title": "川普：已擊沉伊朗9艘軍艦　海軍總部基本上遭摧毀",
+      "source": "自由時報",
+      "publishedAt": "2026-03-01 19:21:03"
+    },
+    {
+      "title": "Missile strikes continue as Iranian leaders project defiance after Khamenei",
+      "source": "Al Jazeera",
+      "publishedAt": "2026-03-01 19:19:22"
+    },
+    {
+      "title": "Iran after Ayatollah Ali Khamenei",
+      "source": "Al Jazeera",
+      "publishedAt": "2026-03-01 19:04:03"
+    },
+    {
+      "title": "《TAIPEI TIMES》Taiwan continues to receive royalties from F-16V project",
+      "source": "自由時報",
+      "publishedAt": "2026-03-01 19:00:00"
+    },
+    {
+      "title": "《TAIPEI TIMES》LNG, oil supplies uninterrupted: CPC Corp, Taiwan",
+      "source": "自由時報",
+      "publishedAt": "2026-03-01 19:00:00"
+    },
+    {
+      "title": "《TAIPEI TIMES》Iran’s supreme leader Khamenei killed",
+      "source": "自由時報",
+      "publishedAt": "2026-03-01 19:00:00"
+    }
+  ],
+  "messages": [],
+  "stdout": "title\tsource\tpublishedAt\n史詩怒火行動發威 美軍發射ATACMS精準重創伊朗機動飛彈與防空系統\t自由時報\t2026-03-01 19:44:58\nトランプ大統領“イランへの作戦は順調 新指導部と話し合う”\tNHK 日本語\t2026-03-01 19:43:08\n川普：已擊沉伊朗9艘軍艦　海軍總部基本上遭摧毀\t自由時報\t2026-03-01 19:21:03\nMissile strikes continue as Iranian leaders project defiance after Khamenei\tAl Jazeera\t2026-03-01 19:19:22\nIran after Ayatollah Ali Khamenei\tAl Jazeera\t2026-03-01 19:04:03\n《TAIPEI TIMES》Taiwan continues to receive royalties from F-16V project\t自由時報\t2026-03-01 19:00:00\n《TAIPEI TIMES》LNG, oil supplies uninterrupted: CPC Corp, Taiwan\t自由時報\t2026-03-01 19:00:00\n《TAIPEI TIMES》Iran’s supreme leader Khamenei killed\t自由時報\t2026-03-01 19:00:00\n",
+  "stderr": "",
+  "execution_time_ms": 1510
+}

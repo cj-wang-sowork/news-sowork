@@ -2,7 +2,7 @@ import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import {
   getHotTopics,
   getTopicBySlug,
@@ -162,6 +162,34 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         await detectTurningPoints(input.topicId, input.topicQuery, input.articles);
         return { success: true };
+      }),
+  }),
+
+  admin: router({
+    triggerIngest: protectedProcedure
+      .input(z.object({ sourceUrl: z.string().url().optional() }).optional())
+      .mutation(async ({ input }) => {
+        // Step 1: Seed RSS sources
+        await seedRssSources();
+        // Step 2: Fetch and store articles
+        const stored = await fetchAndStoreArticles(input?.sourceUrl);
+        return { stored, message: `成功抓取並儲存 ${stored} 篇新聞` };
+      }),
+
+    ingestStatus: protectedProcedure
+      .query(async () => {
+        const db = await getDb();
+        if (!db) return { articleCount: 0, topicCount: 0, lastFetch: null };
+        const [articleRow] = await db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(newsArticles);
+        const [topicRow] = await db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(topics);
+        return {
+          articleCount: Number(articleRow?.count ?? 0),
+          topicCount: Number(topicRow?.count ?? 0),
+        };
       }),
   }),
 });

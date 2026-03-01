@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import AdminIngest from "./pages/AdminIngest";
 import Timeline from "./pages/Timeline";
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -12,8 +13,8 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/timeline/:topicId" component={Timeline} />
-      <Route path="/404" component={NotFound} />
-      <Route component={NotFound} />
+      <Route path={"/admin/ingest"} component={AdminIngest} />
+      <Route path={"/404"} component={NotFound} />     <Route component={NotFound} />
     </Switch>
   );
 }

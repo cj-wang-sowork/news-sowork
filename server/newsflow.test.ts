@@ -118,6 +118,43 @@ describe("news.fetchRss", () => {
   });
 });
 
+describe("admin.ingestStatus", () => {
+  it("returns article and topic counts", async () => {
+    const user = {
+      id: 1,
+      openId: "owner-user",
+      email: "admin@sowork.ai",
+      name: "Admin",
+      loginMethod: "manus",
+      role: "admin" as const,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSignedIn: new Date(),
+    };
+    const ctx = {
+      user,
+      req: { protocol: "https", headers: {} } as any,
+      res: { clearCookie: vi.fn() } as any,
+    };
+    const caller = appRouter.createCaller(ctx);
+    const result = await caller.admin.ingestStatus();
+    expect(result).toHaveProperty("articleCount");
+    expect(result).toHaveProperty("topicCount");
+    expect(typeof result.articleCount).toBe("number");
+    expect(typeof result.topicCount).toBe("number");
+  });
+
+  it("throws UNAUTHORIZED for unauthenticated user", async () => {
+    const ctx = {
+      user: null,
+      req: { protocol: "https", headers: {} } as any,
+      res: { clearCookie: vi.fn() } as any,
+    };
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.admin.ingestStatus()).rejects.toThrow();
+  });
+});
+
 describe("auth.me", () => {
   it("returns null for unauthenticated user", async () => {
     const ctx = createPublicContext();

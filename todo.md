@@ -26,3 +26,9 @@
 - [ ] 多語系 UI（英文 / 日文切換）
 - [ ] 時間軸頁面串接真實 API（目前仍用 mockData）
 - [ ] 搜尋結果頁（輸入主題後的過渡頁）
+
+## Sprint 3 — RSS 抓取觸發 (已完成)
+- [x] 建立管理員 RSS 抓取觸發頁面（/admin/ingest）
+- [x] 後端加入 admin.triggerIngest 受保護 API
+- [x] 執行第一次真實 RSS 抓取並確認資料入庫（87 篇）
+- [x] 確認 5 個來源成功：自由時報、公視新聞、Al Jazeera、BBC 中文、NHK 日本語

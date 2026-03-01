@@ -1,0 +1,14 @@
+{
+  "query": "SELECT source, COUNT(*) as count FROM news_articles GROUP BY source ORDER BY count DESC; SELECT title, source, published_at FROM news_articles ORDER BY published_at DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT source, COUNT(*) as count FROM news_articles GROUP BY source ORDER BY count DESC; SELECT title, source, published_at FROM news_articles ORDER BY published_at DESC LIMIT 5;",
+  "returncode": 1,
+  "logs": [
+    "source\tcount",
+    "自由時報\t20",
+    "Al Jazeera\t20",
+    "公視新聞\t20",
+    "BBC 中文\t20",
+    "NHK 日本語\t7",
+    "ERROR 1054 (42S22) at line 1: Unknown column 'published_at' in 'field list'"
+  ]
+}

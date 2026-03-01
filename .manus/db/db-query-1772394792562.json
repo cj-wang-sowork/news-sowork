@@ -1,0 +1,30 @@
+{
+  "query": "SELECT source, COUNT(*) as count FROM news_articles GROUP BY source ORDER BY count DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT source, COUNT(*) as count FROM news_articles GROUP BY source ORDER BY count DESC;",
+  "rows": [
+    {
+      "source": "自由時報",
+      "count": "20"
+    },
+    {
+      "source": "Al Jazeera",
+      "count": "20"
+    },
+    {
+      "source": "公視新聞",
+      "count": "20"
+    },
+    {
+      "source": "BBC 中文",
+      "count": "20"
+    },
+    {
+      "source": "NHK 日本語",
+      "count": "7"
+    }
+  ],
+  "messages": [],
+  "stdout": "source\tcount\n自由時報\t20\nAl Jazeera\t20\n公視新聞\t20\nBBC 中文\t20\nNHK 日本語\t7\n",
+  "stderr": "",
+  "execution_time_ms": 1578
+}
