@@ -10,7 +10,7 @@ import {
   getTurningPointNews,
 } from "./db";
 import { fetchAndStoreArticles, seedRssSources } from "./newsIngestion";
-import { buildTopicTimeline, generateStanceResponse, detectTurningPoints } from "./aiAnalysis";
+import { buildTopicTimeline, generateStanceResponse } from "./aiAnalysis";
 import { getDb } from "./db";
 import { topics, newsArticles } from "../drizzle/schema";
 import { like, desc, sql } from "drizzle-orm";
@@ -133,24 +133,6 @@ export const appRouter = router({
         return { content: response };
       }),
 
-    analyzeTopic: publicProcedure
-      .input(
-        z.object({
-          topicId: z.number(),
-          topicQuery: z.string(),
-          articles: z.array(
-            z.object({
-              title: z.string(),
-              publishedAt: z.date(),
-              source: z.string(),
-            })
-          ),
-        })
-      )
-      .mutation(async ({ input }) => {
-        await detectTurningPoints(input.topicId, input.topicQuery, input.articles);
-        return { success: true };
-      }),
   }),
 
   admin: router({

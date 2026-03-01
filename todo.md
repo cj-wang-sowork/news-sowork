@@ -45,3 +45,13 @@
 - [x] 完整重寫 Timeline.tsx：移除所有 mockData 依賴，串接真實 tRPC API
 - [x] 加入 loading、error、空資料三種狀態的 UI
 - [x] 11 個 vitest 測試全部通過
+
+## Sprint 6 — Perplexity API 重構 (放棄：沙筆 TLS 限制無法連線)
+- [x] 確認 Perplexity API Key 有效，但沙筆環境 TLS 封鎖無法連線 api.perplexity.ai
+- [x] 死心：改用 Gemini 2.5 Flash + Google News RSS（方案 B）
+
+## Sprint 6B — Gemini + Google News RSS 重構 (進行中)
+- [ ] 重構 aiAnalysis.ts：改用 Google News RSS 搜尋 + Gemini 分析轉折點
+- [ ] 移除 Perplexity 依賴，改用 invokeLLM (Gemini 2.5 Flash)
+- [ ] 端對端測試：輸入「伊朗」生成真實時間軸
+- [ ] 更新 vitest 測試

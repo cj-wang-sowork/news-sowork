@@ -17,7 +17,6 @@ vi.mock("./db", () => ({
 vi.mock("./aiAnalysis", () => ({
   generateStanceResponse: vi.fn().mockResolvedValue("【新聞稿範本】\n\n這是 AI 模擬生成的立場回覆。"),
   buildTopicTimeline: vi.fn().mockResolvedValue(null),
-  detectTurningPoints: vi.fn().mockResolvedValue([]),
 }));
 
 // Mock RSS ingestion
