@@ -23,10 +23,10 @@ export default function Navbar() {
             </div>
             <div className="flex flex-col leading-none">
               <span className="font-display font-800 text-[15px] text-foreground tracking-tight" style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800 }}>
-                SoWork
-              </span>
-              <span className="text-[10px] font-medium text-[#FF5A1F] tracking-widest uppercase" style={{ fontFamily: 'Sora, sans-serif' }}>
                 NewsFlow
+              </span>
+              <span className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase" style={{ fontFamily: 'Sora, sans-serif' }}>
+                by SoWork
               </span>
             </div>
           </Link>

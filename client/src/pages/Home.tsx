@@ -302,10 +302,10 @@ export default function Home() {
               <div className="w-6 h-6 rounded-md bg-[#FF5A1F] flex items-center justify-center">
                 <span className="text-white text-xs font-bold" style={{ fontFamily: 'Sora, sans-serif' }}>S</span>
               </div>
-              <span className="text-sm font-semibold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>SoWork NewsFlow</span>
+              <span className="text-sm font-semibold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>NewsFlow <span className="font-normal text-muted-foreground">by SoWork</span></span>
             </div>
             <p className="text-xs text-muted-foreground text-center">
-              © 2026 SoWork AI. 新聞資料由 AI 自動聚合，不代表本平台立場。
+              © 2026 SoWork AI · NewsFlow. 新聞資料由 AI 自動聚合，不代表本平台立場。
             </p>
             <div className="flex items-center gap-4">
               {['關於我們', '隱私政策', '服務條款'].map(link => (
