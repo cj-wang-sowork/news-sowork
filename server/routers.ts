@@ -85,24 +85,12 @@ export const appRouter = router({
     createOrFind: publicProcedure
       .input(z.object({ query: z.string().min(1).max(256) }))
       .mutation(async ({ input }) => {
-        const db = await getDb();
-        if (!db) return { slug: "iran-war", isNew: false };
-
-        const existing = await db
-          .select()
-          .from(topics)
-          .where(like(topics.query, `%${input.query}%`))
-          .limit(1);
-
-        if (existing.length > 0 && existing[0]) {
-          return { slug: existing[0].slug, isNew: false };
-        }
-
+        // Always run full pipeline: keyword search → AI turning points → return slug
         const result = await buildTopicTimeline(input.query);
         if (result?.topic) {
-          return { slug: result.topic.slug, isNew: true };
+          const isNew = result.turningPointsList.length > 0;
+          return { slug: result.topic.slug, isNew };
         }
-
         return { slug: "iran-war", isNew: false };
       }),
   }),

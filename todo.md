@@ -38,3 +38,10 @@
 - [x] VOA 中文 RSS 已對應修正（目前回傳 404，將從資料庫移除）
 - [x] 重新觸發 RSS 抓取：新增 147 篇，累計共 381 篇真實新聞
 - [x] Google News RSS 搜尋功能正常運作（Reuters、AP 頁面均有新聞入庫）
+
+## Sprint 5 — 時間軸真實串接 (已完成)
+- [x] 重寫 aiAnalysis.ts：完整 buildTopicTimeline 流程（關鍵字搜尋 → AI 偵測轉折點 → 分配文章）
+- [x] 更新 routers.ts createOrFind：永遠執行完整 AI 分析流程
+- [x] 完整重寫 Timeline.tsx：移除所有 mockData 依賴，串接真實 tRPC API
+- [x] 加入 loading、error、空資料三種狀態的 UI
+- [x] 11 個 vitest 測試全部通過

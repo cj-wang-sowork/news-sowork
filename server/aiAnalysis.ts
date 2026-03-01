@@ -6,8 +6,7 @@
 import { invokeLLM } from "./_core/llm";
 import { getDb } from "./db";
 import { topics, turningPoints, newsArticles, type InsertTurningPoint } from "../drizzle/schema";
-import { eq, desc, and } from "drizzle-orm";
-import { getTextEmbedding, cosineSimilarity } from "./newsIngestion";
+import { eq, desc, or, like, sql } from "drizzle-orm";
 
 // ─── Detect Turning Points from Articles ─────────────────────────────────────
 export async function detectTurningPoints(
@@ -18,19 +17,9 @@ export async function detectTurningPoints(
   const db = await getDb();
   if (!db || articles.length === 0) return;
 
-  // Group articles by date (day-level)
-  const byDate = new Map<string, typeof articles>();
-  for (const article of articles) {
-    const dateKey = article.publishedAt.toISOString().slice(0, 10);
-    if (!byDate.has(dateKey)) byDate.set(dateKey, []);
-    byDate.get(dateKey)!.push(article);
-  }
-
-  const sortedDates = Array.from(byDate.keys()).sort();
-
   // Use LLM to identify turning points
   const articlesText = articles
-    .slice(0, 40)
+    .slice(0, 50)
     .map((a) => `[${a.publishedAt.toISOString().slice(0, 10)}] ${a.title}`)
     .join("\n");
 
@@ -42,7 +31,7 @@ export async function detectTurningPoints(
       },
       {
         role: "user",
-        content: `Topic: "${topicQuery}"\n\nHeadlines:\n${articlesText}\n\nIdentify up to 5 major turning points in this story. Each should represent a significant development or shift.`,
+        content: `Topic: "${topicQuery}"\n\nHeadlines:\n${articlesText}\n\nIdentify 3 to 6 major turning points in this story. Each should represent a significant development or shift. Order them chronologically.`,
       },
     ],
     response_format: {
@@ -64,8 +53,9 @@ export async function detectTurningPoints(
                   date_label: { type: "string" },
                   heat_level: { type: "string", enum: ["extreme", "high", "medium", "low"] },
                   is_active: { type: "boolean" },
+                  keywords: { type: "array", items: { type: "string" } },
                 },
-                required: ["title", "title_en", "summary", "date_label", "heat_level", "is_active"],
+                required: ["title", "title_en", "summary", "date_label", "heat_level", "is_active", "keywords"],
                 additionalProperties: false,
               },
             },
@@ -87,15 +77,15 @@ export async function detectTurningPoints(
       date_label: string;
       heat_level: "extreme" | "high" | "medium" | "low";
       is_active: boolean;
+      keywords: string[];
     }>;
 
-    // Get article counts per turning point
     const totalArticles = articles.length;
     const uniqueSources = new Set(articles.map((a) => a.source)).size;
 
     for (let i = 0; i < detectedPoints.length; i++) {
       const point = detectedPoints[i]!;
-      const articleShare = Math.floor(totalArticles / detectedPoints.length);
+      const articleShare = Math.max(1, Math.floor(totalArticles / detectedPoints.length));
       const mediaShare = Math.max(1, Math.floor(uniqueSources / detectedPoints.length));
 
       const newPoint: InsertTurningPoint = {
@@ -115,7 +105,29 @@ export async function detectTurningPoints(
       await db
         .insert(turningPoints)
         .values(newPoint)
-        .onDuplicateKeyUpdate({ set: { title: point.title } });
+        .onDuplicateKeyUpdate({ set: { title: point.title, summary: point.summary } });
+
+      // Assign articles to this turning point by keyword matching
+      const tp = await db
+        .select()
+        .from(turningPoints)
+        .where(eq(turningPoints.topicId, topicId))
+        .orderBy(desc(turningPoints.createdAt))
+        .limit(detectedPoints.length);
+
+      const tpRecord = tp[i];
+      if (tpRecord && point.keywords.length > 0) {
+        // Match articles by keywords
+        const keywordConditions = point.keywords.slice(0, 3).map((kw) =>
+          like(newsArticles.title, `%${kw}%`)
+        );
+        if (keywordConditions.length > 0) {
+          await db
+            .update(newsArticles)
+            .set({ turningPointId: tpRecord.id, topicId })
+            .where(or(...keywordConditions));
+        }
+      }
     }
   } catch (err) {
     console.error("[AI] Failed to parse turning points:", err);
@@ -156,10 +168,10 @@ export async function generateStanceResponse(params: {
     ],
   });
 
-  return response.choices[0]?.message?.content as string ?? "無法生成回覆，請稍後再試。";
+  return (response.choices[0]?.message?.content as string) ?? "無法生成回覆，請稍後再試。";
 }
 
-// ─── Search & Build Topic Timeline ───────────────────────────────────────────
+// ─── Build Topic Timeline (Full Pipeline) ────────────────────────────────────
 export async function buildTopicTimeline(query: string): Promise<{
   topic: typeof topics.$inferSelect | null;
   turningPointsList: Array<typeof turningPoints.$inferSelect & { news: Array<typeof newsArticles.$inferSelect> }>;
@@ -167,43 +179,129 @@ export async function buildTopicTimeline(query: string): Promise<{
   const db = await getDb();
   if (!db) return null;
 
-  // Check if topic already exists
+  // Step 1: Check if topic already exists with turning points
   const existingTopics = await db
     .select()
     .from(topics)
-    .where(eq(topics.query, query))
+    .where(like(topics.query, `%${query}%`))
     .limit(1);
 
   let topic = existingTopics[0] ?? null;
 
+  // If topic exists and has turning points, return existing data
+  if (topic) {
+    const existingTPs = await db
+      .select()
+      .from(turningPoints)
+      .where(eq(turningPoints.topicId, topic.id))
+      .limit(1);
+
+    if (existingTPs.length > 0) {
+      // Return existing timeline
+      const tpList = await db
+        .select()
+        .from(turningPoints)
+        .where(eq(turningPoints.topicId, topic.id))
+        .orderBy(turningPoints.sortOrder);
+
+      const result = await Promise.all(
+        tpList.map(async (tp) => {
+          const news = await db
+            .select()
+            .from(newsArticles)
+            .where(eq(newsArticles.turningPointId, tp.id))
+            .orderBy(desc(newsArticles.publishedAt))
+            .limit(5);
+          return { ...tp, news };
+        })
+      );
+
+      return { topic, turningPointsList: result };
+    }
+  }
+
+  // Step 2: Create new topic if not exists
   if (!topic) {
-    // Create new topic
-    const slug = query
+    const slug = `${query
       .toLowerCase()
-      .replace(/[^a-z0-9\u4e00-\u9fff]/g, "-")
-      .slice(0, 64);
+      .replace(/[\s\u4e00-\u9fff]+/g, "-")
+      .replace(/[^a-z0-9-]/g, "")
+      .slice(0, 48)}-${Date.now()}`;
 
     await db.insert(topics).values({
-      slug: `${slug}-${Date.now()}`,
+      slug,
       query,
       heatLevel: "medium",
       trendDirection: "stable",
     });
 
-    const newTopics = await db.select().from(topics).where(eq(topics.query, query)).limit(1);
+    const newTopics = await db
+      .select()
+      .from(topics)
+      .where(like(topics.query, `%${query}%`))
+      .limit(1);
     topic = newTopics[0] ?? null;
   }
 
   if (!topic) return null;
 
-  // Get turning points for this topic
+  // Step 3: Find relevant articles via keyword matching
+  // Split query into keywords for broader matching
+  const keywords = query.split(/[\s,，、]+/).filter((k) => k.length > 1);
+  const keywordConditions = keywords.slice(0, 5).map((kw) =>
+    like(newsArticles.title, `%${kw}%`)
+  );
+
+  let relevantArticles: Array<typeof newsArticles.$inferSelect> = [];
+
+  if (keywordConditions.length > 0) {
+    relevantArticles = await db
+      .select()
+      .from(newsArticles)
+      .where(or(...keywordConditions))
+      .orderBy(desc(newsArticles.publishedAt))
+      .limit(60);
+  }
+
+  // Fallback: get recent articles if no keyword matches
+  if (relevantArticles.length < 5) {
+    relevantArticles = await db
+      .select()
+      .from(newsArticles)
+      .orderBy(desc(newsArticles.publishedAt))
+      .limit(40);
+  }
+
+  // Step 4: Update topic stats
+  const uniqueSources = new Set(relevantArticles.map((a) => a.source)).size;
+  await db
+    .update(topics)
+    .set({
+      totalArticles: relevantArticles.length,
+      totalMedia: uniqueSources,
+      heatLevel: relevantArticles.length > 30 ? "high" : relevantArticles.length > 10 ? "medium" : "low",
+      lastUpdated: new Date(),
+    })
+    .where(eq(topics.id, topic.id));
+
+  // Step 5: Run AI turning point detection
+  await detectTurningPoints(
+    topic.id,
+    query,
+    relevantArticles.map((a) => ({
+      title: a.title,
+      publishedAt: a.publishedAt ?? new Date(),
+      source: a.source,
+    }))
+  );
+
+  // Step 6: Return complete timeline
   const tpList = await db
     .select()
     .from(turningPoints)
     .where(eq(turningPoints.topicId, topic.id))
     .orderBy(turningPoints.sortOrder);
 
-  // Get news for each turning point
   const result = await Promise.all(
     tpList.map(async (tp) => {
       const news = await db
