@@ -32,3 +32,9 @@
 - [x] 後端加入 admin.triggerIngest 受保護 API
 - [x] 執行第一次真實 RSS 抓取並確認資料入庫（87 篇）
 - [x] 確認 5 個來源成功：自由時報、公視新聞、Al Jazeera、BBC 中文、NHK 日本語
+
+## Sprint 4 — RSS 修正 + 搜尋結果抓取 (已完成)
+- [x] 修正失效 RSS 來源：中央社改用 feedburner，Reuters/AP 改用 Google News RSS
+- [x] VOA 中文 RSS 已對應修正（目前回傳 404，將從資料庫移除）
+- [x] 重新觸發 RSS 抓取：新增 147 篇，累計共 381 篇真實新聞
+- [x] Google News RSS 搜尋功能正常運作（Reuters、AP 頁面均有新聞入庫）

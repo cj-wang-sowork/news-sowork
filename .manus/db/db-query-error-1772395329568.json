@@ -1,0 +1,8 @@
+{
+  "query": "UPDATE rss_sources SET url = 'https://feeds.feedburner.com/rsscna/intworld' WHERE name = '中央社';\nUPDATE rss_sources SET url = 'https://www.voachinese.com/api/zrqoeuuqt/rss' WHERE name = 'VOA 中文';\nUPDATE rss_sources SET url = 'https://news.google.com/rss/search?q=reuters+news&hl=en-US&gl=US&ceid=US:en' WHERE name = 'Reuters';\nUPDATE rss_sources SET url = 'https://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en' WHERE name = 'AP News';\nSELECT name, url FROM rss_sources ORDER BY name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute UPDATE rss_sources SET url = 'https://feeds.feedburner.com/rsscna/intworld' WHERE name = '中央社';\nUPDATE rss_sources SET url = 'https://www.voachinese.com/api/zrqoeuuqt/rss' WHERE name = 'VOA 中文';\nUPDATE rss_sources SET url = 'https://news.google.com/rss/search?q=reuters+news&hl=en-US&gl=US&ceid=US:en' WHERE name = 'Reuters';\nUPDATE rss_sources SET url = 'https://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en' WHERE name = 'AP News';\nSELECT name, url FROM rss_sources ORDER BY name;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1062 (23000) at line 1: Duplicate entry '?' for key 'rss_sources.rss_sources_url_unique'"
+  ]
+}

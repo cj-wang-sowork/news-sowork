@@ -21,13 +21,15 @@ export const DEFAULT_RSS_SOURCES = [
   { name: "自由時報", url: "https://news.ltn.com.tw/rss/all.xml", language: "zh-TW", country: "TW", flag: "🇹🇼" },
   { name: "聯合新聞網", url: "https://udn.com/rssfeed/news/2/BREAKINGNEWS?ch=news", language: "zh-TW", country: "TW", flag: "🇹🇼" },
   { name: "公視新聞", url: "https://news.pts.org.tw/xml/newsfeed.xml", language: "zh-TW", country: "TW", flag: "🇹🇼" },
-  { name: "中央社", url: "https://www.cna.com.tw/rss/aall.aspx", language: "zh-TW", country: "TW", flag: "🇹🇼" },
+  // 中央社：使用 feedburner 國際新聞頻道
+  { name: "中央社", url: "https://feeds.feedburner.com/rsscna/intworld", language: "zh-TW", country: "TW", flag: "🇹🇼" },
   // International Chinese
   { name: "BBC 中文", url: "https://feeds.bbci.co.uk/zhongwen/trad/rss.xml", language: "zh-TW", country: "GB", flag: "🇬🇧" },
-  { name: "VOA 中文", url: "https://www.voachinese.com/api/zrqoeuuqt", language: "zh-CN", country: "US", flag: "🇺🇸" },
-  // English
-  { name: "Reuters", url: "https://feeds.reuters.com/reuters/topNews", language: "en", country: "GB", flag: "🇬🇧" },
-  { name: "AP News", url: "https://feeds.apnews.com/rss/apf-topnews", language: "en", country: "US", flag: "🇺🇸" },
+  // VOA 中文：使用正確的 RSS 端點
+  { name: "VOA 中文", url: "https://www.voachinese.com/api/zrqoeuuqt/rss", language: "zh-CN", country: "US", flag: "🇺🇸" },
+  // English — Reuters & AP 官方 RSS 已停用，改用 Google News RSS 代替
+  { name: "Reuters", url: "https://news.google.com/rss/search?q=reuters+news&hl=en-US&gl=US&ceid=US:en", language: "en", country: "GB", flag: "🇬🇧" },
+  { name: "AP News", url: "https://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en", language: "en", country: "US", flag: "🇺🇸" },
   { name: "Al Jazeera", url: "https://www.aljazeera.com/xml/rss/all.xml", language: "en", country: "QA", flag: "🇶🇦" },
   // Japanese
   { name: "NHK 日本語", url: "https://www3.nhk.or.jp/rss/news/cat0.xml", language: "ja", country: "JP", flag: "🇯🇵" },

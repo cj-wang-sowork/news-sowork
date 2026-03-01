@@ -1,0 +1,46 @@
+{
+  "query": "DELETE FROM rss_sources WHERE name = 'VOA 中文';\nSELECT name, url FROM rss_sources ORDER BY country, name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute DELETE FROM rss_sources WHERE name = 'VOA 中文';\nSELECT name, url FROM rss_sources ORDER BY country, name;",
+  "rows": [
+    {
+      "name": "BBC 中文",
+      "url": "https://feeds.bbci.co.uk/zhongwen/trad/rss.xml"
+    },
+    {
+      "name": "Reuters",
+      "url": "https://news.google.com/rss/search?q=reuters+news&hl=en-US&gl=US&ceid=US:en"
+    },
+    {
+      "name": "NHK 日本語",
+      "url": "https://www3.nhk.or.jp/rss/news/cat0.xml"
+    },
+    {
+      "name": "Al Jazeera",
+      "url": "https://www.aljazeera.com/xml/rss/all.xml"
+    },
+    {
+      "name": "中央社",
+      "url": "https://feeds.feedburner.com/rsscna/intworld"
+    },
+    {
+      "name": "公視新聞",
+      "url": "https://news.pts.org.tw/xml/newsfeed.xml"
+    },
+    {
+      "name": "聯合新聞網",
+      "url": "https://udn.com/rssfeed/news/2/BREAKINGNEWS?ch=news"
+    },
+    {
+      "name": "自由時報",
+      "url": "https://news.ltn.com.tw/rss/all.xml"
+    },
+    {
+      "name": "AP News",
+      "url": "https://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en"
+    }
+  ],
+  "messages": [],
+  "stdout": "name\turl\nBBC 中文\thttps://feeds.bbci.co.uk/zhongwen/trad/rss.xml\nReuters\thttps://news.google.com/rss/search?q=reuters+news&hl=en-US&gl=US&ceid=US:en\nNHK 日本語\thttps://www3.nhk.or.jp/rss/news/cat0.xml\nAl Jazeera\thttps://www.aljazeera.com/xml/rss/all.xml\n中央社\thttps://feeds.feedburner.com/rsscna/intworld\n公視新聞\thttps://news.pts.org.tw/xml/newsfeed.xml\n聯合新聞網\thttps://udn.com/rssfeed/news/2/BREAKINGNEWS?ch=news\n自由時報\thttps://news.ltn.com.tw/rss/all.xml\nAP News\thttps://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en\n",
+  "stderr": "",
+  "execution_time_ms": 1752
+}

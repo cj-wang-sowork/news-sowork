@@ -1,0 +1,60 @@
+{
+  "query": "DELETE FROM rss_sources WHERE url IN (\n  'https://www.cna.com.tw/rss/aall.aspx',\n  'https://www.voachinese.com/api/zrqoeuuqt',\n  'https://feeds.reuters.com/reuters/topNews',\n  'https://feeds.apnews.com/rss/apf-topnews'\n);\nSELECT id, name, url FROM rss_sources ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute DELETE FROM rss_sources WHERE url IN (\n  'https://www.cna.com.tw/rss/aall.aspx',\n  'https://www.voachinese.com/api/zrqoeuuqt',\n  'https://feeds.reuters.com/reuters/topNews',\n  'https://feeds.apnews.com/rss/apf-topnews'\n);\nSELECT id, name, url FROM rss_sources ORDER BY id;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "自由時報",
+      "url": "https://news.ltn.com.tw/rss/all.xml"
+    },
+    {
+      "id": "2",
+      "name": "聯合新聞網",
+      "url": "https://udn.com/rssfeed/news/2/BREAKINGNEWS?ch=news"
+    },
+    {
+      "id": "3",
+      "name": "公視新聞",
+      "url": "https://news.pts.org.tw/xml/newsfeed.xml"
+    },
+    {
+      "id": "5",
+      "name": "BBC 中文",
+      "url": "https://feeds.bbci.co.uk/zhongwen/trad/rss.xml"
+    },
+    {
+      "id": "9",
+      "name": "Al Jazeera",
+      "url": "https://www.aljazeera.com/xml/rss/all.xml"
+    },
+    {
+      "id": "10",
+      "name": "NHK 日本語",
+      "url": "https://www3.nhk.or.jp/rss/news/cat0.xml"
+    },
+    {
+      "id": "14",
+      "name": "中央社",
+      "url": "https://feeds.feedburner.com/rsscna/intworld"
+    },
+    {
+      "id": "16",
+      "name": "VOA 中文",
+      "url": "https://www.voachinese.com/api/zrqoeuuqt/rss"
+    },
+    {
+      "id": "17",
+      "name": "Reuters",
+      "url": "https://news.google.com/rss/search?q=reuters+news&hl=en-US&gl=US&ceid=US:en"
+    },
+    {
+      "id": "18",
+      "name": "AP News",
+      "url": "https://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\turl\n1\t自由時報\thttps://news.ltn.com.tw/rss/all.xml\n2\t聯合新聞網\thttps://udn.com/rssfeed/news/2/BREAKINGNEWS?ch=news\n3\t公視新聞\thttps://news.pts.org.tw/xml/newsfeed.xml\n5\tBBC 中文\thttps://feeds.bbci.co.uk/zhongwen/trad/rss.xml\n9\tAl Jazeera\thttps://www.aljazeera.com/xml/rss/all.xml\n10\tNHK 日本語\thttps://www3.nhk.or.jp/rss/news/cat0.xml\n14\t中央社\thttps://feeds.feedburner.com/rsscna/intworld\n16\tVOA 中文\thttps://www.voachinese.com/api/zrqoeuuqt/rss\n17\tReuters\thttps://news.google.com/rss/search?q=reuters+news&hl=en-US&gl=US&ceid=US:en\n18\tAP News\thttps://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en\n",
+  "stderr": "",
+  "execution_time_ms": 1818
+}

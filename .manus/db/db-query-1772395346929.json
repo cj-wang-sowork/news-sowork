@@ -1,0 +1,50 @@
+{
+  "query": "SELECT id, name, url FROM rss_sources WHERE name IN ('中央社', 'VOA 中文', 'Reuters', 'AP News') ORDER BY name, id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT id, name, url FROM rss_sources WHERE name IN ('中央社', 'VOA 中文', 'Reuters', 'AP News') ORDER BY name, id;",
+  "rows": [
+    {
+      "id": "8",
+      "name": "AP News",
+      "url": "https://feeds.apnews.com/rss/apf-topnews"
+    },
+    {
+      "id": "18",
+      "name": "AP News",
+      "url": "https://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en"
+    },
+    {
+      "id": "7",
+      "name": "Reuters",
+      "url": "https://feeds.reuters.com/reuters/topNews"
+    },
+    {
+      "id": "17",
+      "name": "Reuters",
+      "url": "https://news.google.com/rss/search?q=reuters+news&hl=en-US&gl=US&ceid=US:en"
+    },
+    {
+      "id": "6",
+      "name": "VOA 中文",
+      "url": "https://www.voachinese.com/api/zrqoeuuqt"
+    },
+    {
+      "id": "16",
+      "name": "VOA 中文",
+      "url": "https://www.voachinese.com/api/zrqoeuuqt/rss"
+    },
+    {
+      "id": "4",
+      "name": "中央社",
+      "url": "https://www.cna.com.tw/rss/aall.aspx"
+    },
+    {
+      "id": "14",
+      "name": "中央社",
+      "url": "https://feeds.feedburner.com/rsscna/intworld"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\turl\n8\tAP News\thttps://feeds.apnews.com/rss/apf-topnews\n18\tAP News\thttps://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en\n7\tReuters\thttps://feeds.reuters.com/reuters/topNews\n17\tReuters\thttps://news.google.com/rss/search?q=reuters+news&hl=en-US&gl=US&ceid=US:en\n6\tVOA 中文\thttps://www.voachinese.com/api/zrqoeuuqt\n16\tVOA 中文\thttps://www.voachinese.com/api/zrqoeuuqt/rss\n4\t中央社\thttps://www.cna.com.tw/rss/aall.aspx\n14\t中央社\thttps://feeds.feedburner.com/rsscna/intworld\n",
+  "stderr": "",
+  "execution_time_ms": 1592
+}

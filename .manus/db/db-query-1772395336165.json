@@ -1,0 +1,80 @@
+{
+  "query": "SELECT id, name, url FROM rss_sources ORDER BY name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT id, name, url FROM rss_sources ORDER BY name;",
+  "rows": [
+    {
+      "id": "9",
+      "name": "Al Jazeera",
+      "url": "https://www.aljazeera.com/xml/rss/all.xml"
+    },
+    {
+      "id": "8",
+      "name": "AP News",
+      "url": "https://feeds.apnews.com/rss/apf-topnews"
+    },
+    {
+      "id": "18",
+      "name": "AP News",
+      "url": "https://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en"
+    },
+    {
+      "id": "5",
+      "name": "BBC 中文",
+      "url": "https://feeds.bbci.co.uk/zhongwen/trad/rss.xml"
+    },
+    {
+      "id": "10",
+      "name": "NHK 日本語",
+      "url": "https://www3.nhk.or.jp/rss/news/cat0.xml"
+    },
+    {
+      "id": "7",
+      "name": "Reuters",
+      "url": "https://feeds.reuters.com/reuters/topNews"
+    },
+    {
+      "id": "17",
+      "name": "Reuters",
+      "url": "https://news.google.com/rss/search?q=reuters+news&hl=en-US&gl=US&ceid=US:en"
+    },
+    {
+      "id": "6",
+      "name": "VOA 中文",
+      "url": "https://www.voachinese.com/api/zrqoeuuqt"
+    },
+    {
+      "id": "16",
+      "name": "VOA 中文",
+      "url": "https://www.voachinese.com/api/zrqoeuuqt/rss"
+    },
+    {
+      "id": "4",
+      "name": "中央社",
+      "url": "https://www.cna.com.tw/rss/aall.aspx"
+    },
+    {
+      "id": "14",
+      "name": "中央社",
+      "url": "https://feeds.feedburner.com/rsscna/intworld"
+    },
+    {
+      "id": "3",
+      "name": "公視新聞",
+      "url": "https://news.pts.org.tw/xml/newsfeed.xml"
+    },
+    {
+      "id": "2",
+      "name": "聯合新聞網",
+      "url": "https://udn.com/rssfeed/news/2/BREAKINGNEWS?ch=news"
+    },
+    {
+      "id": "1",
+      "name": "自由時報",
+      "url": "https://news.ltn.com.tw/rss/all.xml"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\turl\n9\tAl Jazeera\thttps://www.aljazeera.com/xml/rss/all.xml\n8\tAP News\thttps://feeds.apnews.com/rss/apf-topnews\n18\tAP News\thttps://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en\n5\tBBC 中文\thttps://feeds.bbci.co.uk/zhongwen/trad/rss.xml\n10\tNHK 日本語\thttps://www3.nhk.or.jp/rss/news/cat0.xml\n7\tReuters\thttps://feeds.reuters.com/reuters/topNews\n17\tReuters\thttps://news.google.com/rss/search?q=reuters+news&hl=en-US&gl=US&ceid=US:en\n6\tVOA 中文\thttps://www.voachinese.com/api/zrqoeuuqt\n16\tVOA 中文\thttps://www.voachinese.com/api/zrqoeuuqt/rss\n4\t中央社\thttps://www.cna.com.tw/rss/aall.aspx\n14\t中央社\thttps://feeds.feedburner.com/rsscna/intworld\n3\t公視新聞\thttps://news.pts.org.tw/xml/newsfeed.xml\n2\t聯合新聞網\thttps://udn.com/rssfeed/news/2/BREAKINGNEWS?ch=news\n1\t自由時報\thttps://news.ltn.com.tw/rss/all.xml\n",
+  "stderr": "",
+  "execution_time_ms": 1549
+}
