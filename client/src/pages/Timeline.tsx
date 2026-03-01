@@ -5,13 +5,14 @@
  */
 
 import { useState } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, useParams } from 'wouter';
 import {
-  Search, Newspaper, Radio, ChevronDown, ChevronUp,
-  ExternalLink, Zap, ArrowLeft, BrainCircuit, Globe
+  Newspaper, Radio, ChevronDown, ChevronUp,
+  ExternalLink, Zap, ArrowLeft, BrainCircuit, Globe, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
+import { trpc } from '@/lib/trpc';
 import { iranTopic, type TurningPoint, type NewsItem } from '@/lib/mockData';
 
 const HEAT_CONFIG = {
@@ -177,23 +178,26 @@ function AIResponsePanel({
 }) {
   const [role, setRole] = useState('');
   const [responseType, setResponseType] = useState<'press' | 'social' | 'memo'>('press');
-  const [generated, setGenerated] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState('');
 
   const AI_BG = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/ai-response-panel-bg-9sBdPYzxpxr4fjK9F9yQNj.webp';
 
-  const mockResponses: Record<string, string> = {
-    press: `【新聞稿範本】\n\n針對近期伊朗局勢，本部表示高度關注。我方已啟動緊急應變機制，密切監控中東地區情勢發展。\n\n本部強調，維護地區穩定與和平是我方一貫立場。我方呼籲各方保持克制，透過外交途徑化解分歧。\n\n如有最新進展，本部將即時對外說明。`,
-    social: `【社群媒體貼文】\n\n🔔 最新聲明\n\n關於伊朗局勢，我方立場如下：\n\n✅ 密切關注事態發展\n✅ 已啟動緊急應變\n✅ 呼籲各方保持克制\n\n我方將持續更新最新資訊，請關注官方頻道。\n\n#伊朗 #中東局勢 #聲明`,
-    memo: `【內部決策建議備忘錄】\n\n主旨：伊朗局勢應對策略建議\n\n一、現況評估\n目前局勢屬高度不確定性，哈梅內伊身亡後政權走向未明，需持續觀察。\n\n二、建議行動\n1. 短期：暫停非必要的中東業務往來\n2. 中期：評估供應鏈替代方案\n3. 長期：建立地緣政治風險預警機制\n\n三、風險等級：高`,
-  };
+  const generateStance = trpc.ai.generateStance.useMutation({
+    onSuccess: (data) => {
+      setGeneratedContent(data.content);
+    },
+  });
 
   const handleGenerate = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setGenerated(true);
-    }, 1500);
+    if (!role.trim() || !point) return;
+    setGeneratedContent('');
+    generateStance.mutate({
+      topicTitle: point.title,
+      topicSummary: point.summary,
+      role: role.trim(),
+      responseType,
+      language: 'zh-TW',
+    });
   };
 
   if (!point) return null;
@@ -277,7 +281,7 @@ function AIResponsePanel({
               ].map(type => (
                 <button
                   key={type.key}
-                  onClick={() => { setResponseType(type.key as typeof responseType); setGenerated(false); }}
+                  onClick={() => { setResponseType(type.key as typeof responseType); setGeneratedContent(''); }}
                   className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-sm font-medium ${
                     responseType === type.key
                       ? 'border-[#FF5A1F] bg-[#FFF0EB] text-[#FF5A1F]'
@@ -294,12 +298,12 @@ function AIResponsePanel({
           {/* Generate Button */}
           <Button
             onClick={handleGenerate}
-            disabled={!role.trim() || loading}
+            disabled={!role.trim() || generateStance.isPending}
             className="w-full bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-bold py-3 rounded-xl shadow-sm disabled:opacity-50"
           >
-            {loading ? (
+            {generateStance.isPending ? (
               <span className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
                 AI 正在生成...
               </span>
             ) : (
@@ -311,7 +315,7 @@ function AIResponsePanel({
           </Button>
 
           {/* Generated Result */}
-          {generated && (
+          {generatedContent && (
             <div className="fade-up opacity-0 bg-[#FAFAFA] rounded-xl border border-border p-4" style={{ animationFillMode: 'forwards' }}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -319,7 +323,7 @@ function AIResponsePanel({
                   <span className="text-xs text-muted-foreground">· 以「{role}」身份</span>
                 </div>
                 <button
-                  onClick={() => navigator.clipboard.writeText(mockResponses[responseType])}
+                  onClick={() => navigator.clipboard.writeText(generatedContent)}
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   複製
@@ -327,11 +331,11 @@ function AIResponsePanel({
               </div>
               <pre className="text-sm text-foreground leading-relaxed whitespace-pre-wrap font-sans"
                 style={{ fontFamily: 'Noto Sans TC, sans-serif' }}>
-                {mockResponses[responseType]}
+                {generatedContent}
               </pre>
               <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
                 <Globe className="w-3 h-3" />
-                此為 AI 模擬生成，僅供參考，請自行審閱後使用。
+                此為 AI 生成內容，僅供參考，請自行審閱後使用。
               </p>
             </div>
           )}

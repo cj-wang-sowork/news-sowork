@@ -4,17 +4,34 @@
  * Layout: Asymmetric hero (left 50% text, right 50% world map bg) + card grid below
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { Search, TrendingUp, TrendingDown, Minus, ArrowRight, Flame, Newspaper, Radio } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Minus, ArrowRight, Flame, Newspaper, Radio, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
-import { hotTopics, suggestedTopics, type HotTopic } from '@/lib/mockData';
+import { trpc } from '@/lib/trpc';
+import { hotTopics, suggestedTopics } from '@/lib/mockData';
+
+type HeatLevel = 'extreme' | 'high' | 'medium' | 'low';
+type TrendDir = 'up' | 'down' | 'stable';
+
+interface TopicCardData {
+  id: number | string;
+  slug: string;
+  query: string;
+  category?: string | null;
+  heatLevel: HeatLevel;
+  trendDirection: TrendDir;
+  trendPercent: number;
+  totalArticles: number;
+  totalMedia: number;
+  lastUpdated: Date | string;
+}
 
 const HERO_BG = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/hero-bg-XfwRB5Ntc2dAJmMgdEDPA7.webp';
 const WORLD_MAP_BG = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/world-map-bg-MzGU8tBRSD7zZ2Q542weKJ.webp';
 
-function HeatBadge({ level }: { level: HotTopic['heatLevel'] }) {
+function HeatBadge({ level }: { level: HeatLevel }) {
   const config = {
     extreme: { label: '極高熱度', bg: 'bg-red-50', text: 'text-red-600', dot: 'bg-red-500' },
     high: { label: '高熱度', bg: 'bg-orange-50', text: 'text-orange-600', dot: 'bg-orange-500' },
@@ -30,7 +47,7 @@ function HeatBadge({ level }: { level: HotTopic['heatLevel'] }) {
   );
 }
 
-function TrendIcon({ trend, percent }: { trend: HotTopic['trend']; percent: number }) {
+function TrendIcon({ trend, percent }: { trend: TrendDir; percent: number }) {
   if (trend === 'up') return (
     <span className="flex items-center gap-0.5 text-xs text-red-500 font-semibold">
       <TrendingUp className="w-3 h-3" />+{percent}%
@@ -48,7 +65,7 @@ function TrendIcon({ trend, percent }: { trend: HotTopic['trend']; percent: numb
   );
 }
 
-function TopicCard({ topic, index }: { topic: HotTopic; index: number }) {
+function TopicCard({ topic, index }: { topic: TopicCardData; index: number }) {
   const [, navigate] = useLocation();
   const delay = index * 80;
 
@@ -56,55 +73,53 @@ function TopicCard({ topic, index }: { topic: HotTopic; index: number }) {
     <div
       className="fade-up opacity-0 bg-white rounded-2xl border border-border p-5 hover:border-[#FF5A1F]/30 hover:shadow-lg transition-all duration-300 cursor-pointer group"
       style={{ animationDelay: `${delay}ms`, animationFillMode: 'forwards' }}
-      onClick={() => navigate('/timeline/iran-war')}
+      onClick={() => navigate(`/timeline/${topic.slug}`)}
     >
-      {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1 min-w-0">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{topic.category}</span>
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{topic.category ?? '國際'}</span>
           <h3 className="font-display font-700 text-[15px] text-foreground mt-0.5 leading-snug group-hover:text-[#FF5A1F] transition-colors line-clamp-2"
             style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif', fontWeight: 700 }}>
-            {topic.title}
+            {topic.query}
           </h3>
         </div>
         <HeatBadge level={topic.heatLevel} />
       </div>
 
-      {/* Stats */}
       <div className="flex items-center gap-4 mb-3">
         <div className="flex items-center gap-1.5">
           <Newspaper className="w-3.5 h-3.5 text-muted-foreground" />
           <span className="text-sm font-bold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
-            {topic.articleCount.toLocaleString()}
+            {topic.totalArticles.toLocaleString()}
           </span>
           <span className="text-xs text-muted-foreground">篇報導</span>
         </div>
         <div className="flex items-center gap-1.5">
           <Radio className="w-3.5 h-3.5 text-muted-foreground" />
           <span className="text-sm font-bold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
-            {topic.mediaCount}
+            {topic.totalMedia}
           </span>
           <span className="text-xs text-muted-foreground">家媒體</span>
         </div>
       </div>
 
-      {/* Media dots */}
       <div className="flex items-center gap-1 mb-3">
-        {Array.from({ length: Math.min(topic.mediaCount, 20) }).map((_, i) => (
+        {Array.from({ length: Math.min(topic.totalMedia, 20) }).map((_, i) => (
           <div
             key={i}
             className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: i < Math.ceil(topic.mediaCount * 0.6) ? '#FF5A1F' : '#E8E8E8' }}
+            style={{ backgroundColor: i < Math.ceil(topic.totalMedia * 0.6) ? '#FF5A1F' : '#E8E8E8' }}
           />
         ))}
-        {topic.mediaCount > 20 && <span className="text-xs text-muted-foreground ml-1">+{topic.mediaCount - 20}</span>}
+        {topic.totalMedia > 20 && <span className="text-xs text-muted-foreground ml-1">+{topic.totalMedia - 20}</span>}
       </div>
 
-      {/* Footer */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <TrendIcon trend={topic.trend} percent={topic.trendPercent} />
-          <span className="text-xs text-muted-foreground">{topic.lastUpdate}</span>
+          <TrendIcon trend={topic.trendDirection} percent={topic.trendPercent} />
+          <span className="text-xs text-muted-foreground">
+            {typeof topic.lastUpdated === 'string' ? topic.lastUpdated : new Date(topic.lastUpdated).toLocaleDateString('zh-TW')}
+          </span>
         </div>
         <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-[#FF5A1F] group-hover:translate-x-1 transition-all" />
       </div>
@@ -119,7 +134,6 @@ export default function Home() {
   const [charIndex, setCharIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [, navigate] = useLocation();
-  const inputRef = useRef<HTMLInputElement>(null);
 
   // Typing animation for placeholder
   useEffect(() => {
@@ -145,12 +159,49 @@ export default function Home() {
     return () => clearTimeout(timeout);
   }, [charIndex, isDeleting, topicIndex]);
 
+  // Fetch real hot topics from API
+  const { data: apiTopics, isLoading: topicsLoading } = trpc.topics.hot.useQuery({ limit: 12 });
+
+  // Create or find topic mutation for search
+  const createOrFind = trpc.topics.createOrFind.useMutation({
+    onSuccess: (data) => {
+      navigate(`/timeline/${data.slug}`);
+    },
+  });
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      navigate('/timeline/iran-war');
+      createOrFind.mutate({ query: query.trim() });
     }
   };
+
+  // Use real API data if available, fallback to mock
+  const displayTopics: TopicCardData[] = (apiTopics && apiTopics.length > 0)
+    ? apiTopics.map(t => ({
+        id: t.id,
+        slug: t.slug,
+        query: t.query,
+        category: t.category,
+        heatLevel: t.heatLevel,
+        trendDirection: t.trendDirection,
+        trendPercent: t.trendPercent,
+        totalArticles: t.totalArticles,
+        totalMedia: t.totalMedia,
+        lastUpdated: t.lastUpdated,
+      }))
+    : hotTopics.map(t => ({
+        id: t.id,
+        slug: 'iran-war',
+        query: t.title,
+        category: t.category,
+        heatLevel: t.heatLevel,
+        trendDirection: t.trend === 'up' ? 'up' as TrendDir : t.trend === 'down' ? 'down' as TrendDir : 'stable' as TrendDir,
+        trendPercent: t.trendPercent,
+        totalArticles: t.articleCount,
+        totalMedia: t.mediaCount,
+        lastUpdated: t.lastUpdate,
+      }));
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
@@ -189,7 +240,6 @@ export default function Home() {
                 <div className="flex items-center bg-white rounded-2xl border-2 border-border focus-within:border-[#FF5A1F] shadow-sm transition-all duration-200 overflow-hidden">
                   <Search className="w-5 h-5 text-muted-foreground ml-4 flex-shrink-0" />
                   <input
-                    ref={inputRef}
                     type="text"
                     value={query}
                     onChange={e => setQuery(e.target.value)}
@@ -199,9 +249,15 @@ export default function Home() {
                   />
                   <Button
                     type="submit"
-                    className="m-1.5 bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-semibold rounded-xl px-5 py-2.5 h-auto shadow-sm"
+                    disabled={createOrFind.isPending}
+                    className="m-1.5 bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-semibold rounded-xl px-5 py-2.5 h-auto shadow-sm disabled:opacity-70"
                   >
-                    追蹤
+                    {createOrFind.isPending ? (
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        AI 分析中
+                      </span>
+                    ) : '追蹤'}
                   </Button>
                 </div>
               </form>
@@ -211,7 +267,7 @@ export default function Home() {
                 {suggestedTopics.slice(0, 4).map(t => (
                   <button
                     key={t}
-                    onClick={() => { setQuery(t); navigate('/timeline/iran-war'); }}
+                    onClick={() => { setQuery(t); createOrFind.mutate({ query: t }); }}
                     className="text-xs px-3 py-1.5 rounded-full bg-white border border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F] transition-all"
                   >
                     {t}
@@ -287,11 +343,23 @@ export default function Home() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {hotTopics.map((topic, i) => (
-            <TopicCard key={topic.id} topic={topic} index={i} />
-          ))}
-        </div>
+        {topicsLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-border p-5 animate-pulse">
+                <div className="h-4 bg-gray-100 rounded mb-3 w-3/4" />
+                <div className="h-3 bg-gray-100 rounded mb-2 w-1/2" />
+                <div className="h-3 bg-gray-100 rounded w-2/3" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {displayTopics.map((topic, i) => (
+              <TopicCard key={String(topic.id)} topic={topic} index={i} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Footer */}
