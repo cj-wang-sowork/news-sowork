@@ -477,37 +477,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Tag Filter */}
-        {allTagsData && allTagsData.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 scrollbar-hide">
-            <span className="flex-shrink-0 flex items-center gap-1 text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
-              <Tag className="w-3 h-3" />標籤
-            </span>
-            <button
-              onClick={() => { setSelectedTag(null); setShowAll(false); }}
-              className={`flex-shrink-0 text-[10px] px-2.5 py-1 rounded-full border font-medium transition-all ${
-                selectedTag === null
-                  ? 'bg-gray-800 text-white border-gray-800'
-                  : 'bg-white text-muted-foreground border-border hover:border-gray-400'
-              }`}
-            >
-              全部
-            </button>
-            {allTagsData.slice(0, 20).map(tag => (
-              <button
-                key={tag}
-                onClick={() => { setSelectedTag(tag === selectedTag ? null : tag); setShowAll(false); }}
-                className={`flex-shrink-0 text-[10px] px-2.5 py-1 rounded-full border font-medium transition-all ${
-                  selectedTag === tag
-                    ? 'bg-gray-800 text-white border-gray-800'
-                    : 'bg-white text-muted-foreground border-border hover:border-gray-400'
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-        )}
 
         {topicsLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
