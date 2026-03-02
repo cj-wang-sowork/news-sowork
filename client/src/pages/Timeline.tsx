@@ -215,6 +215,36 @@ function AIResponsePanel({
   point: RealTurningPoint | null;
   onClose: () => void;
 }) {
+  const RECENT_ROLES_KEY = 'newsflow_recent_roles';
+  const MAX_RECENT = 5;
+
+  // 身份記憶：從 localStorage 載入最近使用的身份
+  const [recentRoles, setRecentRoles] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(RECENT_ROLES_KEY);
+      return stored ? (JSON.parse(stored) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const saveRoleToRecent = (r: string) => {
+    if (!r.trim()) return;
+    setRecentRoles(prev => {
+      const updated = [r.trim(), ...prev.filter(x => x !== r.trim())].slice(0, MAX_RECENT);
+      try { localStorage.setItem(RECENT_ROLES_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+      return updated;
+    });
+  };
+
+  const removeRecentRole = (r: string) => {
+    setRecentRoles(prev => {
+      const updated = prev.filter(x => x !== r);
+      try { localStorage.setItem(RECENT_ROLES_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+      return updated;
+    });
+  };
+
   const [role, setRole] = useState('');
   const [responseType, setResponseType] = useState<'press' | 'social' | 'memo'>('press');
   const [generatedContent, setGeneratedContent] = useState('');
@@ -235,8 +265,11 @@ function AIResponsePanel({
 
   const generateStance = trpc.ai.generateStance.useMutation({
     onSuccess: (data) => {
-      setGeneratedContent(data.content);
+      const content = typeof data.content === 'string' ? data.content : '';
+      setGeneratedContent(content);
       setRefineHistory([]);
+      // 生成成功後將身份儲存到最近使用
+      saveRoleToRecent(role);
     },
   });
 
@@ -347,6 +380,36 @@ function AIResponsePanel({
               className="w-full px-4 py-3 rounded-xl border-2 border-border focus:border-[#FF5A1F] outline-none text-sm bg-white transition-colors"
               style={{ fontFamily: 'Noto Sans TC, sans-serif' }}
             />
+            {/* 最近使用的身份 */}
+            {recentRoles.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs text-muted-foreground mb-1.5">🕒 最近使用</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {recentRoles.map(r => (
+                    <div key={r} className="flex items-center group">
+                      <button
+                        onClick={() => setRole(r)}
+                        className={`text-xs px-3 py-1.5 rounded-l-full border transition-all font-medium ${
+                          role === r
+                            ? 'bg-[#FF5A1F] text-white border-[#FF5A1F]'
+                            : 'bg-white text-foreground border-border hover:border-[#FF5A1F]/60 hover:text-[#FF5A1F]'
+                        }`}
+                      >
+                        {r}
+                      </button>
+                      <button
+                        onClick={() => removeRecentRole(r)}
+                        className="text-xs px-1.5 py-1.5 rounded-r-full border border-l-0 border-border bg-white text-muted-foreground hover:text-red-500 hover:border-red-200 transition-all opacity-0 group-hover:opacity-100"
+                        title="移除"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* AI 推薦身份 */}
             <div className="mt-2">
               {rolesLoading ? (
