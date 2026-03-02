@@ -1,11 +1,16 @@
 /**
  * Create Topic Page — NewsFlow
  * 登入用戶可建立新議題，選擇公開或私人
+ * Step 1: 輸入關鍵字 → AI 歧義消解（確認議題方向）
+ * Step 2: 選擇可見性 → 建立
  */
 
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { ArrowLeft, Globe, Lock, Zap, Loader2, AlertCircle, Coins } from 'lucide-react';
+import {
+  ArrowLeft, Globe, Lock, Zap, Loader2, AlertCircle, Coins,
+  ChevronRight, CheckCircle2, Search, RefreshCw,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import { trpc } from '@/lib/trpc';
@@ -18,15 +23,45 @@ const SUGGESTED_TOPICS = [
   "韓國少子化政策", "印度崛起與全球製造", "非洲糧食危機",
 ];
 
+type DisambiguateCandidate = {
+  title: string;
+  description: string;
+  refinedQuery: string;
+};
+
+type Step = 'input' | 'disambiguate' | 'confirm';
+
 export default function CreateTopic() {
   const [, navigate] = useLocation();
   const { user, loading: authLoading } = useAuth();
+  const [step, setStep] = useState<Step>('input');
   const [query, setQuery] = useState('');
+  const [candidates, setCandidates] = useState<DisambiguateCandidate[]>([]);
+  const [selectedCandidate, setSelectedCandidate] = useState<DisambiguateCandidate | null>(null);
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [error, setError] = useState<string | null>(null);
 
   const { data: pointsData } = trpc.points.balance.useQuery(undefined, { enabled: !!user });
 
+  // Step 1 → 歧義消解
+  const disambiguateMutation = trpc.topics.disambiguate.useMutation({
+    onSuccess: (data) => {
+      if (data.candidates.length <= 1) {
+        // 只有一個方向或無歧義，直接跳到確認步驟
+        const candidate = data.candidates[0] ?? { title: query, description: '直接建立此議題', refinedQuery: query };
+        setSelectedCandidate(candidate);
+        setStep('confirm');
+      } else {
+        setCandidates(data.candidates);
+        setStep('disambiguate');
+      }
+    },
+    onError: (err) => {
+      setError(err.message);
+    },
+  });
+
+  // Step 2 → 建立議題
   const createMutation = trpc.topics.create.useMutation({
     onSuccess: (data) => {
       navigate(`/timeline/${data.slug}`);
@@ -36,11 +71,37 @@ export default function CreateTopic() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleQuerySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
     setError(null);
-    createMutation.mutate({ query: query.trim(), visibility });
+    disambiguateMutation.mutate({ query: query.trim() });
+  };
+
+  const handleSelectCandidate = (candidate: DisambiguateCandidate) => {
+    setSelectedCandidate(candidate);
+    setStep('confirm');
+  };
+
+  const handleCreate = () => {
+    if (!selectedCandidate) return;
+    setError(null);
+    createMutation.mutate({ query: selectedCandidate.refinedQuery, visibility });
+  };
+
+  const handleBack = () => {
+    if (step === 'disambiguate') {
+      setStep('input');
+      setCandidates([]);
+    } else if (step === 'confirm') {
+      if (candidates.length > 1) {
+        setStep('disambiguate');
+      } else {
+        setStep('input');
+      }
+      setSelectedCandidate(null);
+    }
+    setError(null);
   };
 
   if (authLoading) {
@@ -83,21 +144,33 @@ export default function CreateTopic() {
       <div className="container py-10 max-w-xl">
         {/* Back */}
         <button
-          onClick={() => navigate('/')}
+          onClick={step === 'input' ? () => navigate('/') : handleBack}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
-          返回首頁
+          {step === 'input' ? '返回首頁' : '返回上一步'}
         </button>
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-extrabold text-foreground mb-1" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
-            建立新議題
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            輸入你想追蹤的主題，AI 將自動分析並生成完整時間軸
-          </p>
+        {/* Step Indicator */}
+        <div className="flex items-center gap-2 mb-6">
+          {(['input', 'disambiguate', 'confirm'] as Step[]).map((s, i) => {
+            const labels = ['輸入關鍵字', '確認方向', '建立議題'];
+            const isActive = step === s;
+            const isDone = (step === 'disambiguate' && i === 0) || (step === 'confirm' && i <= 1);
+            return (
+              <div key={s} className="flex items-center gap-2">
+                <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-all ${
+                  isActive ? 'bg-[#FF5A1F] text-white' :
+                  isDone ? 'bg-green-100 text-green-700' :
+                  'bg-gray-100 text-muted-foreground'
+                }`}>
+                  {isDone ? <CheckCircle2 className="w-3 h-3" /> : <span>{i + 1}</span>}
+                  {labels[i]}
+                </div>
+                {i < 2 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
+              </div>
+            );
+          })}
         </div>
 
         {/* Points Info */}
@@ -113,122 +186,238 @@ export default function CreateTopic() {
           </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Topic Query */}
-          <div className="bg-white rounded-2xl border border-border p-5">
-            <label className="block text-sm font-semibold text-foreground mb-3">
-              議題主題 <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="例如：台灣半導體產業發展"
-              className="w-full px-4 py-3 rounded-xl border border-border focus:border-[#FF5A1F] focus:outline-none text-foreground placeholder:text-muted-foreground/60 text-base transition-colors"
-              style={{ fontFamily: 'Noto Sans TC, sans-serif' }}
-              maxLength={256}
-              disabled={createMutation.isPending}
-            />
-            <p className="text-xs text-muted-foreground mt-2">{query.length}/256 字</p>
+        {/* ── Step 1: 輸入關鍵字 ── */}
+        {step === 'input' && (
+          <form onSubmit={handleQuerySubmit} className="space-y-5">
+            <div className="bg-white rounded-2xl border border-border p-5">
+              <label className="block text-sm font-semibold text-foreground mb-1">
+                議題關鍵字 <span className="text-red-500">*</span>
+              </label>
+              <p className="text-xs text-muted-foreground mb-3">
+                輸入你想追蹤的主題，AI 會先確認你的意圖，再搜尋 50 篇以上相關新聞
+              </p>
+              <input
+                type="text"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="例如：肯德基蛋塔、台積電、伊朗核協議"
+                className="w-full px-4 py-3 rounded-xl border border-border focus:border-[#FF5A1F] focus:outline-none text-foreground placeholder:text-muted-foreground/60 text-base transition-colors"
+                style={{ fontFamily: 'Noto Sans TC, sans-serif' }}
+                maxLength={256}
+                disabled={disambiguateMutation.isPending}
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground mt-2">{query.length}/256 字</p>
 
-            {/* Suggestions */}
-            <div className="mt-3">
-              <p className="text-xs text-muted-foreground mb-2">熱門建議：</p>
-              <div className="flex flex-wrap gap-1.5">
-                {SUGGESTED_TOPICS.map(t => (
+              {/* Suggestions */}
+              <div className="mt-3">
+                <p className="text-xs text-muted-foreground mb-2">熱門建議：</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {SUGGESTED_TOPICS.map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setQuery(t)}
+                      className="text-xs px-2.5 py-1 rounded-full bg-gray-50 border border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F] transition-all"
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={!query.trim() || disambiguateMutation.isPending}
+              className="w-full bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-bold py-4 rounded-xl shadow-sm disabled:opacity-60 text-base"
+            >
+              {disambiguateMutation.isPending ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  AI 正在分析議題方向...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Search className="w-5 h-5" />
+                  分析議題方向
+                </span>
+              )}
+            </Button>
+          </form>
+        )}
+
+        {/* ── Step 2: 歧義消解 — 選擇議題方向 ── */}
+        {step === 'disambiguate' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl border border-border p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <Search className="w-4 h-4 text-[#FF5A1F]" />
+                <h2 className="text-sm font-bold text-foreground">
+                  「{query}」可能對應以下議題方向
+                </h2>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">
+                請選擇你真正想追蹤的方向，AI 將針對該方向搜尋 50 篇以上相關新聞
+              </p>
+
+              <div className="space-y-2.5">
+                {candidates.map((c, i) => (
                   <button
-                    key={t}
+                    key={i}
                     type="button"
-                    onClick={() => setQuery(t)}
-                    className="text-xs px-2.5 py-1 rounded-full bg-gray-50 border border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F] transition-all"
+                    onClick={() => handleSelectCandidate(c)}
+                    className="w-full text-left p-4 rounded-xl border-2 border-border hover:border-[#FF5A1F] hover:bg-orange-50 transition-all group"
                   >
-                    {t}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground group-hover:text-[#FF5A1F] transition-colors">
+                          {c.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                          {c.description}
+                        </p>
+                        <p className="text-xs text-[#FF5A1F]/70 mt-1 font-mono">
+                          搜尋詞：{c.refinedQuery}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-[#FF5A1F] flex-shrink-0 mt-0.5 transition-colors" />
+                    </div>
                   </button>
                 ))}
               </div>
             </div>
+
+            {/* 以上都不是 */}
+            <button
+              type="button"
+              onClick={() => {
+                setStep('input');
+                setCandidates([]);
+              }}
+              className="w-full text-sm text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 py-2 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              以上都不是，重新輸入
+            </button>
           </div>
+        )}
 
-          {/* Visibility */}
-          <div className="bg-white rounded-2xl border border-border p-5">
-            <label className="block text-sm font-semibold text-foreground mb-3">
-              可見性
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setVisibility('public')}
-                className={`flex flex-col items-start p-4 rounded-xl border-2 transition-all text-left ${
-                  visibility === 'public'
-                    ? 'border-[#FF5A1F] bg-orange-50'
-                    : 'border-border hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Globe className={`w-4 h-4 ${visibility === 'public' ? 'text-[#FF5A1F]' : 'text-muted-foreground'}`} />
-                  <span className={`text-sm font-semibold ${visibility === 'public' ? 'text-[#FF5A1F]' : 'text-foreground'}`}>
-                    公開
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  所有人可瀏覽，每次被瀏覽為你賺取 1 點
+        {/* ── Step 3: 確認並建立 ── */}
+        {step === 'confirm' && selectedCandidate && (
+          <div className="space-y-5">
+            {/* 確認卡片 */}
+            <div className="bg-white rounded-2xl border-2 border-[#FF5A1F]/30 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle2 className="w-4 h-4 text-[#FF5A1F]" />
+                <span className="text-sm font-semibold text-foreground">已選擇議題方向</span>
+              </div>
+              <h3 className="text-base font-bold text-foreground mb-1" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
+                {selectedCandidate.title}
+              </h3>
+              <p className="text-xs text-muted-foreground mb-2">{selectedCandidate.description}</p>
+              <div className="bg-orange-50 rounded-lg px-3 py-2">
+                <p className="text-xs text-muted-foreground">
+                  搜尋詞：<span className="font-semibold text-[#FF5A1F]">{selectedCandidate.refinedQuery}</span>
                 </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setVisibility('private')}
-                className={`flex flex-col items-start p-4 rounded-xl border-2 transition-all text-left ${
-                  visibility === 'private'
-                    ? 'border-[#FF5A1F] bg-orange-50'
-                    : 'border-border hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Lock className={`w-4 h-4 ${visibility === 'private' ? 'text-[#FF5A1F]' : 'text-muted-foreground'}`} />
-                  <span className={`text-sm font-semibold ${visibility === 'private' ? 'text-[#FF5A1F]' : 'text-foreground'}`}>
-                    私人
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  僅自己可見，不會出現在公開列表
-                </p>
-              </button>
+              </div>
+              {candidates.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setStep('disambiguate')}
+                  className="text-xs text-muted-foreground hover:text-[#FF5A1F] mt-2 underline transition-colors"
+                >
+                  更換方向
+                </button>
+              )}
             </div>
-          </div>
 
-          {/* Error */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
+            {/* Visibility */}
+            <div className="bg-white rounded-2xl border border-border p-5">
+              <label className="block text-sm font-semibold text-foreground mb-3">
+                可見性
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setVisibility('public')}
+                  className={`flex flex-col items-start p-4 rounded-xl border-2 transition-all text-left ${
+                    visibility === 'public'
+                      ? 'border-[#FF5A1F] bg-orange-50'
+                      : 'border-border hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Globe className={`w-4 h-4 ${visibility === 'public' ? 'text-[#FF5A1F]' : 'text-muted-foreground'}`} />
+                    <span className={`text-sm font-semibold ${visibility === 'public' ? 'text-[#FF5A1F]' : 'text-foreground'}`}>
+                      公開
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    所有人可瀏覽，每次被瀏覽為你賺取 1 點
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setVisibility('private')}
+                  className={`flex flex-col items-start p-4 rounded-xl border-2 transition-all text-left ${
+                    visibility === 'private'
+                      ? 'border-[#FF5A1F] bg-orange-50'
+                      : 'border-border hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Lock className={`w-4 h-4 ${visibility === 'private' ? 'text-[#FF5A1F]' : 'text-muted-foreground'}`} />
+                    <span className={`text-sm font-semibold ${visibility === 'private' ? 'text-[#FF5A1F]' : 'text-foreground'}`}>
+                      私人
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    僅自己可見，不會出現在公開列表
+                  </p>
+                </button>
+              </div>
             </div>
-          )}
 
-          {/* Submit */}
-          <Button
-            type="submit"
-            disabled={!query.trim() || createMutation.isPending}
-            className="w-full bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-bold py-4 rounded-xl shadow-sm disabled:opacity-60 text-base"
-          >
-            {createMutation.isPending ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                AI 正在分析議題（約 20-30 秒）...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <Zap className="w-5 h-5" />
-                建立議題並生成時間軸
-              </span>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
             )}
-          </Button>
 
-          <p className="text-xs text-muted-foreground text-center">
-            AI 將從 Google News 抓取最新報導，自動分析並生成時間軸。
-          </p>
-        </form>
+            <Button
+              type="button"
+              onClick={handleCreate}
+              disabled={createMutation.isPending}
+              className="w-full bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-bold py-4 rounded-xl shadow-sm disabled:opacity-60 text-base"
+            >
+              {createMutation.isPending ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  AI 正在搜尋 50+ 篇新聞並生成時間軸（約 30-60 秒）...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Zap className="w-5 h-5" />
+                  建立議題並生成時間軸
+                </span>
+              )}
+            </Button>
+
+            <p className="text-xs text-muted-foreground text-center">
+              AI 將從 Google News 搜尋 50 篇以上相關報導，自動分析並生成時間軸。
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

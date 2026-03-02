@@ -22,28 +22,35 @@ interface NewsItem {
  * Search Google News RSS for a given query.
  * Google News RSS: https://news.google.com/rss/search?q=QUERY&hl=zh-TW&gl=TW&ceid=TW:zh-Hant
  */
-export async function searchGoogleNews(query: string): Promise<{
+export async function searchGoogleNews(query: string, targetCount = 50): Promise<{
   items: NewsItem[];
   rawText: string;
 }> {
-  // Build multiple search queries for better coverage
-  // 計算 7 天前的日期，用於 Google News 時間過濾
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const afterDate = sevenDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+  // 擴大時間範圍至 30 天，提升台灣在地新聞覆蓋率
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const afterDate = thirtyDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD
 
-  const queries = [
-    query,
-    // Add English version for international coverage
-    query.length <= 20 ? query : query.slice(0, 20),
-  ];
+  // 生成多個搜尋變體：繁中主詞、加台灣地域限定、加新聞關鍵詞、英文
+  const queryVariants = new Set<string>();
+  queryVariants.add(query);
+  // 加入「台灣」地域限定詞（若查詢中未包含）
+  if (!query.includes('台灣') && !query.includes('Taiwan')) {
+    queryVariants.add(`${query} 台灣`);
+  }
+  // 加入「新聞」關鍵詞強化搜尋
+  queryVariants.add(`${query} 新聞`);
+  // 英文版本（取前 20 字）
+  queryVariants.add(query.length <= 20 ? query : query.slice(0, 20));
 
   const allItems: NewsItem[] = [];
 
-  for (const q of queries) {
+  for (const q of Array.from(queryVariants)) {
+    if (allItems.length >= targetCount * 2) break; // 已足夠，不繼續搜尋
     const encodedQuery = encodeURIComponent(`${q} after:${afterDate}`);
-    // Try multiple language feeds
+    // 多語言 feed：繁中（台灣）、繁中（香港）、英文
     const feeds = [
       `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`,
+      `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-TW&gl=HK&ceid=HK:zh-Hant`,
       `https://news.google.com/rss/search?q=${encodedQuery}&hl=en-US&gl=US&ceid=US:en`,
     ];
 
@@ -53,7 +60,7 @@ export async function searchGoogleNews(query: string): Promise<{
           headers: {
             "User-Agent": "Mozilla/5.0 (compatible; NewsFlowBot/1.0)",
           },
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(10000),
         });
 
         if (!resp.ok) continue;
@@ -78,14 +85,14 @@ export async function searchGoogleNews(query: string): Promise<{
   // Sort by date (newest first)
   deduped.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
-  const top = deduped.slice(0, 30);
+  const top = deduped.slice(0, Math.max(targetCount, 50));
 
   // Build raw text summary for LLM
   const rawText = top
     .map((item, i) => `[${i + 1}] ${item.publishedAt} — ${item.source}\n標題: ${item.title}\n摘要: ${item.description}`)
     .join("\n\n");
 
-  console.log(`[GoogleNews] Found ${top.length} articles for query: "${query}"`);
+  console.log(`[GoogleNews] Found ${top.length} articles (target: ${targetCount}) for query: "${query}"`);
   return { items: top, rawText };
 }
 

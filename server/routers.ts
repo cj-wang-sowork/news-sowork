@@ -487,6 +487,65 @@ export const appRouter = router({
         }
         return { slug: "iran-war", isNew: false };
       }),
+
+    // 議題歉義消解：輸入關鍵字，AI 回傳 3-5 個可能的議題方向供用戶確認
+    disambiguate: publicProcedure
+      .input(z.object({ query: z.string().min(1).max(256) }))
+      .mutation(async ({ input }) => {
+        const { invokeLLM } = await import("./_core/llm");
+        const prompt = `用戶輸入了關鍵字：「${input.query}」
+
+請分析這個關鍵字可能對應哪些不同的新聞議題或事件方向。
+請提供 3-5 個具體、清晰的議題方向，讓用戶選擇他真正想追蹤的方向。
+
+要求：
+1. 每個方向要具體且有區別性
+2. 標題不超過 15 個字
+3. 描述請簡短說明該方向的內容（20 字內）
+4. 如果關鍵字已夠明確不具歉義性，可以只回傳 1 個方向
+5. refinedQuery 是更精確的搜尋關鍵字，用於搜尋新聞`;
+        const result = await invokeLLM({
+          messages: [
+            { role: 'system', content: '你是一個新聞議題分析專家，回傳格式為 JSON。' },
+            { role: 'user', content: prompt },
+          ],
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'disambiguate_result',
+              strict: true,
+              schema: {
+                type: 'object',
+                properties: {
+                  candidates: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        title: { type: 'string' },
+                        description: { type: 'string' },
+                        refinedQuery: { type: 'string' },
+                      },
+                      required: ['title', 'description', 'refinedQuery'],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ['candidates'],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+        const rawContent = result.choices?.[0]?.message?.content;
+        const content = typeof rawContent === 'string' ? rawContent : '{"candidates":[]}';
+        try {
+          const parsed = JSON.parse(content) as { candidates: Array<{ title: string; description: string; refinedQuery: string }> };
+          return { candidates: parsed.candidates.slice(0, 5) };
+        } catch {
+          return { candidates: [{ title: input.query, description: '直接搜尋此議題', refinedQuery: input.query }] };
+        }
+      }),
   }),
 
   // ─── News ──────────────────────────────────────────────────────────────────
