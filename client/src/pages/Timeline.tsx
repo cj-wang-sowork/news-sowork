@@ -218,16 +218,41 @@ function AIResponsePanel({
   const [role, setRole] = useState('');
   const [responseType, setResponseType] = useState<'press' | 'social' | 'memo'>('press');
   const [generatedContent, setGeneratedContent] = useState('');
+  const [refineInput, setRefineInput] = useState('');
+  const [copied, setCopied] = useState(false);
+  // 對話修改歷程：儲存每次修改的版本
+  type HistoryItem = { instruction: string; content: string };
+  const [refineHistory, setRefineHistory] = useState<HistoryItem[]>([]);
+
+  // AI 推薦身份（根據議題標題自動載入）
+  const { data: suggestedRoles, isLoading: rolesLoading } = trpc.ai.suggestRoles.useQuery(
+    {
+      topicTitle: point?.title ?? '',
+      topicSummary: point?.summary ?? '',
+    },
+    { enabled: !!point }
+  );
 
   const generateStance = trpc.ai.generateStance.useMutation({
     onSuccess: (data) => {
       setGeneratedContent(data.content);
+      setRefineHistory([]);
+    },
+  });
+
+  const refineContent = trpc.ai.refineContent.useMutation({
+    onSuccess: (data) => {
+      const refined = typeof data.content === 'string' ? data.content : '';
+      setRefineHistory(prev => [...prev, { instruction: refineInput, content: refined }]);
+      setGeneratedContent(refined);
+      setRefineInput('');
     },
   });
 
   const handleGenerate = () => {
     if (!role.trim() || !point) return;
     setGeneratedContent('');
+    setRefineHistory([]);
     generateStance.mutate({
       topicTitle: point.title,
       topicSummary: point.summary,
@@ -237,18 +262,51 @@ function AIResponsePanel({
     });
   };
 
+  const handleRefine = () => {
+    if (!refineInput.trim() || !generatedContent || !point) return;
+    refineContent.mutate({
+      currentContent: generatedContent,
+      instruction: refineInput.trim(),
+      role: role.trim(),
+      responseType,
+      topicTitle: point.title,
+    });
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generatedContent);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    const typeLabel = { press: '新聞稿', social: '社群貼文', memo: '內部備忘' }[responseType];
+    const filename = `${typeLabel}_${role}_${point?.title?.slice(0, 15) ?? 'AI回覆'}.txt`;
+    const blob = new Blob([generatedContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (!point) return null;
+
+  const isGenerating = generateStance.isPending;
+  const isRefining = refineContent.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col h-full overflow-hidden">
+
         {/* Panel Header */}
         <div
-          className="relative p-6 pb-4"
+          className="relative p-5 pb-4 flex-shrink-0"
           style={{ backgroundImage: `url(${AI_BG})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
         >
-          <div className="absolute inset-0 bg-white/85" />
+          <div className="absolute inset-0 bg-white/88" />
           <div className="relative">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -257,24 +315,25 @@ function AIResponsePanel({
                 </div>
                 <div>
                   <h3 className="font-bold text-foreground text-sm" style={{ fontFamily: 'Sora, sans-serif' }}>AI 立場回覆建議</h3>
-                  <p className="text-xs text-muted-foreground">根據事件脈絡生成</p>
+                  <p className="text-xs text-muted-foreground">根據議題脈絡自動分析</p>
                 </div>
               </div>
-              <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
-                <span className="text-lg">✕</span>
+              <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-black/10 text-muted-foreground hover:text-foreground transition-colors">
+                <span className="text-base">✕</span>
               </button>
             </div>
             <div className="bg-[#FFF0EB] rounded-xl p-3">
               <p className="text-xs font-semibold text-[#FF5A1F] uppercase tracking-wide mb-0.5">事件脈絡</p>
-              <p className="text-sm font-bold text-foreground" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>{point.title}</p>
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{point.summary}</p>
+              <p className="text-sm font-bold text-foreground line-clamp-1" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>{point.title}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{point.summary}</p>
             </div>
           </div>
         </div>
 
         {/* Panel Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Role Input */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+
+          {/* 身份選擇區 */}
           <div>
             <label className="text-sm font-semibold text-foreground mb-2 block" style={{ fontFamily: 'Sora, sans-serif' }}>
               你的身份 / 立場
@@ -283,24 +342,42 @@ function AIResponsePanel({
               type="text"
               value={role}
               onChange={e => setRole(e.target.value)}
-              placeholder="例如：國防部發言人、肯德基公關、石油公司 CEO..."
+              onKeyDown={e => e.key === 'Enter' && handleGenerate()}
+              placeholder="輸入或點選下方推薦身份..."
               className="w-full px-4 py-3 rounded-xl border-2 border-border focus:border-[#FF5A1F] outline-none text-sm bg-white transition-colors"
               style={{ fontFamily: 'Noto Sans TC, sans-serif' }}
             />
-            <div className="flex flex-wrap gap-2 mt-2">
-              {['國防部發言人', '肯德基公關', '石油公司 CEO', '台灣外交部'].map(r => (
-                <button
-                  key={r}
-                  onClick={() => setRole(r)}
-                  className="text-xs px-2.5 py-1 rounded-full bg-[#FFF0EB] text-[#FF5A1F] hover:bg-[#FF5A1F] hover:text-white transition-all font-medium"
-                >
-                  {r}
-                </button>
-              ))}
+            {/* AI 推薦身份 */}
+            <div className="mt-2">
+              {rolesLoading ? (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  AI 正在分析議題，推薦合適身份...
+                </div>
+              ) : suggestedRoles?.roles && suggestedRoles.roles.length > 0 ? (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1.5">🤖 AI 推薦身份（點選即可）</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {suggestedRoles.roles.map(r => (
+                      <button
+                        key={r}
+                        onClick={() => setRole(r)}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-all font-medium ${
+                          role === r
+                            ? 'bg-[#FF5A1F] text-white border-[#FF5A1F]'
+                            : 'bg-[#FFF0EB] text-[#FF5A1F] border-[#FF5A1F]/30 hover:bg-[#FF5A1F] hover:text-white hover:border-[#FF5A1F]'
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 
-          {/* Response Type */}
+          {/* 回覆類型 */}
           <div>
             <label className="text-sm font-semibold text-foreground mb-2 block" style={{ fontFamily: 'Sora, sans-serif' }}>
               回覆類型
@@ -313,7 +390,7 @@ function AIResponsePanel({
               ].map(type => (
                 <button
                   key={type.key}
-                  onClick={() => { setResponseType(type.key as typeof responseType); setGeneratedContent(''); }}
+                  onClick={() => { setResponseType(type.key as typeof responseType); setGeneratedContent(''); setRefineHistory([]); }}
                   className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-sm font-medium ${
                     responseType === type.key
                       ? 'border-[#FF5A1F] bg-[#FFF0EB] text-[#FF5A1F]'
@@ -327,13 +404,13 @@ function AIResponsePanel({
             </div>
           </div>
 
-          {/* Generate Button */}
+          {/* 生成按鈕 */}
           <Button
             onClick={handleGenerate}
-            disabled={!role.trim() || generateStance.isPending}
+            disabled={!role.trim() || isGenerating}
             className="w-full bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-bold py-3 rounded-xl shadow-sm disabled:opacity-50"
           >
-            {generateStance.isPending ? (
+            {isGenerating ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 AI 正在生成...
@@ -341,36 +418,98 @@ function AIResponsePanel({
             ) : (
               <span className="flex items-center gap-2">
                 <Zap className="w-4 h-4" />
-                生成回覆建議
+                {generatedContent ? '重新生成' : '生成回覆建議'}
               </span>
             )}
           </Button>
 
-          {/* Generated Result */}
+          {/* 生成結果區 */}
           {generatedContent && (
-            <div className="fade-up opacity-0 bg-[#FAFAFA] rounded-xl border border-border p-4" style={{ animationFillMode: 'forwards' }}>
-              <div className="flex items-center justify-between mb-3">
+            <div className="bg-[#FAFAFA] rounded-xl border border-border overflow-hidden">
+              {/* 結果標題列 */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-white">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-[#FF5A1F] uppercase tracking-wide">AI 生成結果</span>
                   <span className="text-xs text-muted-foreground">· 以「{role}」身份</span>
                 </div>
-                <button
-                  onClick={() => navigator.clipboard.writeText(generatedContent)}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  複製
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleCopy}
+                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-all ${
+                      copied ? 'bg-green-100 text-green-700' : 'bg-[#FFF0EB] text-[#FF5A1F] hover:bg-[#FF5A1F] hover:text-white'
+                    }`}
+                  >
+                    {copied ? '✓ 已複製' : '📋 複製'}
+                  </button>
+                  <button
+                    onClick={handleDownload}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-[#FFF0EB] text-[#FF5A1F] hover:bg-[#FF5A1F] hover:text-white transition-all"
+                  >
+                    ↓ 下載
+                  </button>
+                </div>
               </div>
-              <pre className="text-sm text-foreground leading-relaxed whitespace-pre-wrap font-sans"
-                style={{ fontFamily: 'Noto Sans TC, sans-serif' }}>
-                {generatedContent}
-              </pre>
-              <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
-                <Globe className="w-3 h-3" />
-                此為 AI 生成內容，僅供參考，請自行審閱後使用。
-              </p>
+              {/* 內容文本 */}
+              <div className="p-4">
+                <pre className="text-sm text-foreground leading-relaxed whitespace-pre-wrap"
+                  style={{ fontFamily: 'Noto Sans TC, sans-serif' }}>
+                  {generatedContent}
+                </pre>
+              </div>
             </div>
           )}
+
+          {/* 對話修改區（生成後才顯示） */}
+          {generatedContent && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs text-muted-foreground font-medium">對話修改</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              {/* 修改歷程 */}
+              {refineHistory.length > 0 && (
+                <div className="space-y-2">
+                  {refineHistory.map((item, i) => (
+                    <div key={i} className="bg-orange-50 rounded-lg px-3 py-2">
+                      <p className="text-xs text-[#FF5A1F] font-medium mb-0.5">修改指令 {i + 1}</p>
+                      <p className="text-xs text-muted-foreground">{item.instruction}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 修改輸入框 */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={refineInput}
+                  onChange={e => setRefineInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleRefine()}
+                  placeholder="輸入修改要求，例如：請更簡短、請加入數據支持..."
+                  disabled={isRefining}
+                  className="flex-1 px-3 py-2.5 rounded-xl border-2 border-border focus:border-[#FF5A1F] outline-none text-sm bg-white transition-colors disabled:opacity-50"
+                  style={{ fontFamily: 'Noto Sans TC, sans-serif' }}
+                />
+                <Button
+                  onClick={handleRefine}
+                  disabled={!refineInput.trim() || isRefining}
+                  size="sm"
+                  className="bg-[#FF5A1F] hover:bg-[#e04d18] text-white rounded-xl px-3 disabled:opacity-50 flex-shrink-0"
+                >
+                  {isRefining ? <Loader2 className="w-4 h-4 animate-spin" /> : '發送'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">• 每次修改消耗 5 點，可多輪對話直到滿意</p>
+            </div>
+          )}
+
+          {/* 底部備註 */}
+          <p className="text-xs text-muted-foreground flex items-center gap-1 pb-2">
+            <Globe className="w-3 h-3" />
+            此為 AI 生成內容，僅供參考，請自行審閱後使用。
+          </p>
         </div>
       </div>
     </div>

@@ -545,6 +545,109 @@ export const appRouter = router({
           pointsRemaining: currentPoints - POINT_COST_AI_STANCE,
         };
       }),
+
+    // 根據議題標題自動推薦合適的回覆身份
+    suggestRoles: publicProcedure
+      .input(z.object({
+        topicTitle: z.string().min(1).max(256),
+        topicSummary: z.string().max(1000).optional(),
+        topicCategory: z.string().max(64).optional(),
+      }))
+      .query(async ({ input }) => {
+        const { invokeLLM } = await import("./_core/llm");
+        const prompt = `你是一個專業的新語分析師。
+以下是一則新語議題：
+標題：${input.topicTitle}
+${input.topicSummary ? `摘要：${input.topicSummary}` : ''}
+${input.topicCategory ? `分類：${input.topicCategory}` : ''}
+
+請分析此議題，推薦 4−5 個最可能需要對此議題發表立場或回覆的具體身份。
+
+要求：
+1. 身份要具體且具有代表性（不要太泛泛）
+2. 包含不同觀點的利益相關者（政府、業界、媒體、公民社會等）
+3. 身份名稱不超過 12 個字
+4. 回傳 JSON 格式：{"roles": ["...", "...", "...", "..."]}
+
+只回傳 JSON，不要其他文字。`;
+        const result = await invokeLLM({
+          messages: [
+            { role: 'system', content: '你是一個專業的新語分析師，回傳格式將是 JSON。' },
+            { role: 'user', content: prompt },
+          ],
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'role_suggestions',
+              strict: true,
+              schema: {
+                type: 'object',
+                properties: {
+                  roles: { type: 'array', items: { type: 'string' } },
+                },
+                required: ['roles'],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+        const rawContent = result.choices?.[0]?.message?.content;
+        const content = typeof rawContent === 'string' ? rawContent : '{"roles":[]}';
+        try {
+          const parsed = JSON.parse(content);
+          return { roles: (parsed.roles as string[]).slice(0, 5) };
+        } catch {
+          return { roles: [] };
+        }
+      }),
+
+    // 對話式修改已生成內容
+    refineContent: protectedProcedure
+      .input(z.object({
+        currentContent: z.string().min(1).max(5000),
+        instruction: z.string().min(1).max(500),
+        role: z.string().min(1).max(128),
+        responseType: z.enum(['press', 'social', 'memo']),
+        topicTitle: z.string().min(1).max(256),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { invokeLLM } = await import("./_core/llm");
+        const db = await getDb();
+        if (!db) throw new Error('資料庫連線失敗');
+        // 檢查點數
+        const [userRow] = await db.select({ points: users.points }).from(users).where(eq(users.id, ctx.user.id));
+        const currentPoints = userRow?.points ?? 0;
+        const REFINE_COST = 5;
+        if (currentPoints < REFINE_COST) {
+          throw new Error(`點數不足！修改內容需要 ${REFINE_COST} 點，您目前只有 ${currentPoints} 點。`);
+        }
+        await addPoints(db, ctx.user.id, -REFINE_COST, 'ai_usage', undefined, `AI 內容修改：${input.topicTitle}`);
+        const typeLabel = { press: '新語稿', social: '社群貼文', memo: '內部備忘' }[input.responseType];
+        const refinePrompt = `你是一個專業的內容編輯師。
+
+以下是一份以「${input.role}」身份撰寫的${typeLabel}：
+
+---
+${input.currentContent}
+---
+
+用戶要求修改：${input.instruction}
+
+請根據用戶的要求修改內容。保持原有的身份觀點和文件類型，只調整用戶指定的部分。
+直接回傳修改後的完整內容，不要加任何前言或說明。`;
+        const result = await invokeLLM({
+          messages: [
+            { role: 'system', content: '你是一個專業的內容編輯師。' },
+            { role: 'user', content: refinePrompt },
+          ],
+        });
+        const refined = result.choices?.[0]?.message?.content ?? input.currentContent;
+        return {
+          content: refined,
+          pointsUsed: REFINE_COST,
+          pointsRemaining: currentPoints - REFINE_COST,
+        };
+      }),
   }),
 
   // ─── Admin ─────────────────────────────────────────────────────────────────
