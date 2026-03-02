@@ -234,3 +234,9 @@
 - [x] AdminIngest 頁面更新為 202 個來源說明
 - [x] admin.triggerIngest 已包含 seedRssSources，點擊即同步
 - [x] AI 查詢詞擴展：LLM 先把口語詞轉換為新聞關鍵字再搜尋（支援繁中/簡中/英文/日文/韓文）
+
+## Sprint 28 — Stats Bar 即時更新 + RSS 來源數量
+- [x] 確認 topics.stats API 即時讀取資料庫（topicCount、articleCount 均為即時 SQL COUNT）
+- [x] 後端：topics.stats 新增 rssSourceCount 欄位（從 rss_sources 表計算）
+- [x] 前端：Stats Bar 新增「RSS 新聞來源」欄位（即時從資料庫讀取，未同步前顯示 202）
+- [x] 前端：Stats Bar 追蹤話題、已入庫新聞均為即時 API 資料

@@ -21,6 +21,7 @@ import {
   pointTransactions,
   topicViews,
   userTopics,
+  rssSources,
 } from "../drizzle/schema";
 import { like, desc, sql, eq, and, gte } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -355,7 +356,7 @@ export const appRouter = router({
     stats: publicProcedure
       .query(async () => {
         const db = await getDb();
-        if (!db) return { articleCount: 0, topicCount: 0 };
+        if (!db) return { articleCount: 0, topicCount: 0, rssSourceCount: 0 };
         const [articleRow] = await db
           .select({ count: sql<number>`COUNT(*)` })
           .from(newsArticles);
@@ -363,9 +364,13 @@ export const appRouter = router({
           .select({ count: sql<number>`COUNT(*)` })
           .from(topics)
           .where(eq(topics.visibility, "public"));
+        const [rssRow] = await db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(rssSources);
         return {
           articleCount: Number(articleRow?.count ?? 0),
           topicCount: Number(topicRow?.count ?? 0),
+          rssSourceCount: Number(rssRow?.count ?? 0),
         };
       }),
 

@@ -399,6 +399,7 @@ export default function Home() {
             {[
               { label: '追蹤話題', value: siteStats ? siteStats.topicCount.toLocaleString() : '—', unit: '個' },
               { label: '已入庫新聞', value: siteStats ? siteStats.articleCount.toLocaleString() : '—', unit: '篇' },
+              { label: 'RSS 新聞來源', value: siteStats ? (siteStats.rssSourceCount > 0 ? siteStats.rssSourceCount.toLocaleString() : '202') : '202', unit: '個' },
               { label: '支援語言', value: '10+', unit: '種' },
               { label: '即時更新', value: '每 15 分鐘', unit: '' },
             ].map(stat => (
