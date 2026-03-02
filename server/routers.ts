@@ -340,13 +340,13 @@ export const appRouter = router({
           })
           .where(eq(topics.id, result.topic.id));
 
-        return {
+         return {
           slug: result.topic.slug,
+          topicId: result.topic.id,
           isNew: result.turningPointsList.length > 0,
           visibility: input.visibility,
         };
       }),
-
     // 用戶自己建立的議題列表
     myTopics: protectedProcedure
       .input(z.object({ limit: z.number().min(1).max(50).default(20) }).optional())
@@ -474,6 +474,37 @@ export const appRouter = router({
           }
         }
         return Array.from(tagSet).sort();
+      }),
+
+    // 取得議題新語收集進度
+    getProgress: publicProcedure
+      .input(z.object({ slug: z.string().min(1) }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { articleCount: 0, turningPointCount: 0, status: 'unknown' as const };
+        // 查詢議題
+        const [topic] = await db
+          .select({ id: topics.id, totalArticles: topics.totalArticles, totalMedia: topics.totalMedia, lastUpdated: topics.lastUpdated })
+          .from(topics)
+          .where(eq(topics.slug, input.slug))
+          .limit(1);
+        if (!topic) return { articleCount: 0, turningPointCount: 0, status: 'not_found' as const };
+        // 計算實際收集的文章數
+        const [countRow] = await db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(newsArticles)
+          .where(eq(newsArticles.topicId, topic.id));
+        const articleCount = Number(countRow?.count ?? 0);
+        // 計算轉折點數
+        const { turningPoints } = await import('../drizzle/schema');
+        const [tpRow] = await db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(turningPoints)
+          .where(eq(turningPoints.topicId, topic.id));
+        const turningPointCount = Number(tpRow?.count ?? 0);
+        const TARGET = 50;
+        const status = articleCount >= TARGET ? 'ready' : 'collecting';
+        return { articleCount, turningPointCount, target: TARGET, status, lastUpdated: topic.lastUpdated };
       }),
 
     // 公開搜尋（不需登入）

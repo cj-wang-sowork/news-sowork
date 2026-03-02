@@ -5,12 +5,12 @@
  * Data: Fully connected to real tRPC API (no mockData)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useParams } from 'wouter';
 import {
   Newspaper, Radio, ChevronDown, ChevronUp,
   ExternalLink, Zap, ArrowLeft, BrainCircuit, Globe, Loader2, AlertCircle,
-  Bookmark, BookmarkCheck
+  Bookmark, BookmarkCheck, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
@@ -662,6 +662,32 @@ export default function Timeline() {
     }
   }, [data?.turningPoints]);
 
+  // 新語收集進度 polling
+  const { data: progressData, refetch: refetchProgress } = trpc.topics.getProgress.useQuery(
+    { slug },
+    { enabled: !!slug, refetchInterval: false }
+  );
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (!progressData) return;
+    if (progressData.status === 'collecting') {
+      if (!progressIntervalRef.current) {
+        progressIntervalRef.current = setInterval(() => { void refetchProgress(); }, 10000);
+      }
+    } else {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    }
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
+  }, [progressData?.status]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -804,15 +830,56 @@ export default function Timeline() {
         </div>
       </div>
 
+      {/* 新語收集進度條（收集中時顯示） */}
+      {progressData?.status === 'collecting' && (
+        <div className="bg-orange-50 border-b border-orange-100">
+          <div className="container py-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-[#FF5A1F] animate-spin" />
+                <span className="text-sm font-semibold text-[#FF5A1F]">正在收集相關新語</span>
+                <span className="text-xs text-muted-foreground">目標：至少 50 篇才能建立完整時間軸</span>
+              </div>
+              <span className="text-sm font-bold text-[#FF5A1F]" style={{ fontFamily: 'Sora, sans-serif' }}>
+                {progressData.articleCount} / {progressData.target ?? 50} 篇
+              </span>
+            </div>
+            <div className="w-full bg-orange-100 rounded-full h-2 overflow-hidden">
+              <div
+                className="h-2 bg-gradient-to-r from-[#FF5A1F] to-[#ff8c5a] rounded-full transition-all duration-700"
+                style={{ width: `${Math.min(100, Math.round((progressData.articleCount / (progressData.target ?? 50)) * 100))}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5">每 10 秒自動更新——系統正在背景搜尋台灣、香港、英文新語來源</p>
+          </div>
+        </div>
+      )}
+
       {/* Timeline */}
       <div className="container py-12">
         {turningPoints.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <AlertCircle className="w-10 h-10 text-muted-foreground" />
-            <p className="text-muted-foreground text-center">
-              AI 正在分析相關新聞，轉折點即將生成<br />
-              <span className="text-sm">請稍後重新整理頁面</span>
-            </p>
+            {progressData?.status === 'collecting' ? (
+              <>
+                <div className="w-12 h-12 rounded-full border-4 border-[#FF5A1F]/20 border-t-[#FF5A1F] animate-spin" />
+                <div className="text-center">
+                  <p className="text-lg font-bold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
+                    正在收集新語中
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    已收集 {progressData.articleCount} 篇，目標 {progressData.target ?? 50} 篇——AI 將從中分析轉折點
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-10 h-10 text-muted-foreground" />
+                <p className="text-muted-foreground text-center">
+                  AI 正在分析相關新語，轉折點即將生成<br />
+                  <span className="text-sm">請稍後重新整理頁面</span>
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <div className="relative">

@@ -61,9 +61,16 @@ export default function CreateTopic() {
     },
   });
 
+  // 自動追蹤議題
+  const saveTopicMutation = trpc.topics.saveTopic.useMutation();
+
   // Step 2 → 建立議題
   const createMutation = trpc.topics.create.useMutation({
     onSuccess: (data) => {
+      // 建立後自動將議題加入「我的議題」追蹤清單
+      if (data.topicId) {
+        saveTopicMutation.mutate({ topicId: data.topicId });
+      }
       navigate(`/timeline/${data.slug}`);
     },
     onError: (err) => {
