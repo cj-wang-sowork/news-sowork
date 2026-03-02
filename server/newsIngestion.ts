@@ -250,6 +250,52 @@ export const DEFAULT_RSS_SOURCES = [
   { name: "ABC Australia", url: "https://www.abc.net.au/news/feed/2942460/rss.xml", language: "en", country: "AU", flag: "🇦🇺", category: "全國" },
   { name: "NZ Herald RSS", url: "https://www.nzherald.co.nz/arc/outboundfeeds/rss/curated/78/?outputType=xml", language: "en", country: "NZ", flag: "🇳🇿", category: "全國" },
   { name: "RNZ New Zealand", url: "https://www.rnz.co.nz/rss/national.xml", language: "en", country: "NZ", flag: "🇳🇿", category: "全國" },
+
+  // ── Part 3: Google News 區域 Feed 🌐 ──
+  { name: "Google News TW", url: "https://news.google.com/rss?hl=zh-TW&gl=TW&ceid=TW:zh-Hant", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "全國" },
+  { name: "Google News US", url: "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", language: "en", country: "US", flag: "🇺🇸", category: "全國" },
+  { name: "Google News UK", url: "https://news.google.com/rss?hl=en-GB&gl=GB&ceid=GB:en", language: "en", country: "GB", flag: "🇬🇧", category: "全國" },
+  { name: "Google News JP", url: "https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja", language: "ja", country: "JP", flag: "🇯🇵", category: "全國" },
+  { name: "Google News KR", url: "https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko", language: "ko", country: "KR", flag: "🇰🇷", category: "全國" },
+  { name: "Google News DE", url: "https://news.google.com/rss?hl=de&gl=DE&ceid=DE:de", language: "de", country: "DE", flag: "🇩🇪", category: "全國" },
+  { name: "Google News FR", url: "https://news.google.com/rss?hl=fr&gl=FR&ceid=FR:fr", language: "fr", country: "FR", flag: "🇫🇷", category: "全國" },
+  { name: "Google News IN", url: "https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en", language: "en", country: "IN", flag: "🇮🇳", category: "全國" },
+  { name: "Google News BR", url: "https://news.google.com/rss?hl=pt-BR&gl=BR&ceid=BR:pt-419", language: "pt", country: "BR", flag: "🇧🇷", category: "全國" },
+  { name: "Google News AU", url: "https://news.google.com/rss?hl=en-AU&gl=AU&ceid=AU:en", language: "en", country: "AU", flag: "🇦🇺", category: "全國" },
+
+  // ── Part 3: 台灣中文媒體補充 🇹🇼 ──
+  { name: "TVBS", url: "https://news.tvbs.com.tw/rss/all.xml", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "全國" },
+  { name: "三立新聞", url: "https://www.setn.com/Rss.aspx", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "全國" },
+  { name: "東森新聞", url: "https://www.ettoday.net/events/rss-news.php", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "全國" },
+  { name: "端傳媒", url: "https://theinitium.com/newsfeed/", language: "zh-TW", country: "HK", flag: "🇭🇰", category: "國際" },
+  { name: "天下雜誌", url: "https://www.cw.com.tw/RSS/cw_content.xml", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "財經" },
+  { name: "商業周刊 RSS2", url: "https://www.businessweekly.com.tw/rss/RSS_Channel/latest.xml", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "財經" },
+
+  // ── Part 3: 科學補充 🆂🆄 ──
+  { name: "Science Daily All", url: "https://www.sciencedaily.com/rss/all.xml", language: "en", country: "US", flag: "🇺🇸", category: "科學" },
+
+  // ── Part 3: 國際分析補充 🌍 ──
+  { name: "The Diplomat", url: "https://thediplomat.com/feed/", language: "en", country: "US", flag: "🇺🇸", category: "國際" },
+  { name: "The Economist", url: "https://www.economist.com/international/rss.xml", language: "en", country: "GB", flag: "🇬🇧", category: "國際" },
+
+  // ── Part 3: 日本專業補充 🇯🇵 ──
+  { name: "Kyodo News", url: "https://english.kyodonews.net/rss/all.xml", language: "en", country: "JP", flag: "🇯🇵", category: "國際" },
+
+  // ── Part 3: 東南亞補充 🇲🇾🇮🇳 ──
+  { name: "Bernama", url: "https://www.bernama.com/en/rss/index.php", language: "en", country: "MY", flag: "🇲🇾", category: "全國" },
+
+  // ── Part 3: 印度補充 🇮🇳 ──
+  { name: "Scroll India", url: "https://scroll.in/rss/all", language: "en", country: "IN", flag: "🇮🇳", category: "全國" },
+  { name: "Wire India", url: "https://thewire.in/feed", language: "en", country: "IN", flag: "🇮🇳", category: "全國" },
+
+  // ── 補充至 200+ ──
+  { name: "Google News CN", url: "https://news.google.com/rss?hl=zh-CN&gl=CN&ceid=CN:zh-Hans", language: "zh-CN", country: "CN", flag: "🇨🇳", category: "全國" },
+  { name: "Google News SG", url: "https://news.google.com/rss?hl=en-SG&gl=SG&ceid=SG:en", language: "en", country: "SG", flag: "🇸🇬", category: "全國" },
+  { name: "Google News HK", url: "https://news.google.com/rss?hl=zh-HK&gl=HK&ceid=HK:zh-Hant", language: "zh-TW", country: "HK", flag: "🇭🇰", category: "全國" },
+  { name: "Google News ZA", url: "https://news.google.com/rss?hl=en-ZA&gl=ZA&ceid=ZA:en", language: "en", country: "ZA", flag: "🇿🇦", category: "全國" },
+  { name: "Google News MX", url: "https://news.google.com/rss?hl=es-MX&gl=MX&ceid=MX:es-419", language: "es", country: "MX", flag: "🇲🇽", category: "全國" },
+  { name: "Google News IT", url: "https://news.google.com/rss?hl=it&gl=IT&ceid=IT:it", language: "it", country: "IT", flag: "🇮🇹", category: "全國" },
+  { name: "Google News ES", url: "https://news.google.com/rss?hl=es&gl=ES&ceid=ES:es", language: "es", country: "ES", flag: "🇪🇸", category: "全國" },
 ];
 
 // ─── Seed RSS Sources ─────────────────────────────────────────────────────────
