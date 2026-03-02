@@ -610,23 +610,33 @@ function AIResponsePanel({
           </div>
 
           {/* 生成按鈕 */}
-          <Button
-            onClick={handleGenerate}
-            disabled={!role.trim() || isGenerating}
-            className="w-full bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-bold py-3 rounded-xl shadow-sm disabled:opacity-50"
-          >
-            {isGenerating ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                AI 正在生成...
+          <div className="space-y-2">
+            <Button
+              onClick={handleGenerate}
+              disabled={!role.trim() || isGenerating}
+              className="w-full bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-bold py-3 rounded-xl shadow-sm disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  AI 正在生成...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  {generatedContent ? '重新生成' : '生成回覆建議'}
+                </span>
+              )}
+            </Button>
+            {/* Beta 免費體驗標籤 */}
+            <div className="flex items-center justify-center gap-1.5">
+              <span className="inline-flex items-center gap-1 bg-green-50 border border-green-200 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Beta
               </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <Zap className="w-4 h-4" />
-                {generatedContent ? '重新生成' : '生成回覆建議'}
-              </span>
-            )}
-          </Button>
+              <span className="text-[11px] text-muted-foreground">現在免費體驗，不消耗任何點數</span>
+            </div>
+          </div>
 
           {/* 生成結果區 */}
           {generatedContent && (

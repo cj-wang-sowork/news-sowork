@@ -250,3 +250,6 @@
 - [x] 後端：generateStance 移除點數扣除邏輯，對所有登入用戶免費開放
 - [x] 後端：refineContent 移除點數扣除邏輯，對所有登入用戶免費開放
 - [x] 後端：保留點數資料表（不刪除），只是暫停扣點機制
+
+## Sprint 36 — AI 面板 Beta badge
+- [x] 前端：AI 立場回覆面板生成按鈕旁加入「 Beta · 免費體驗」 badge
