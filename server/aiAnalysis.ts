@@ -27,6 +27,10 @@ export async function searchGoogleNews(query: string): Promise<{
   rawText: string;
 }> {
   // Build multiple search queries for better coverage
+  // 計算 7 天前的日期，用於 Google News 時間過濾
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const afterDate = sevenDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+
   const queries = [
     query,
     // Add English version for international coverage
@@ -36,7 +40,7 @@ export async function searchGoogleNews(query: string): Promise<{
   const allItems: NewsItem[] = [];
 
   for (const q of queries) {
-    const encodedQuery = encodeURIComponent(q);
+    const encodedQuery = encodeURIComponent(`${q} after:${afterDate}`);
     // Try multiple language feeds
     const feeds = [
       `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`,
@@ -172,30 +176,35 @@ async function formatTimelineFromNews(
     messages: [
       {
         role: "system",
-        content: `You are a news timeline analyst. Given a list of recent news articles about a topic, identify and structure the major turning points into a chronological timeline. Each turning point should represent a significant development or shift in the story. Output structured JSON only.`,
+        content: `You are a news timeline analyst. Given a list of RECENT news articles (from the past 7 days) about a topic, identify and structure the major developments into a timeline. IMPORTANT: Only analyze events that are described in the provided articles. Do NOT invent historical background or events from years ago. Each turning point must correspond to actual news from the provided articles. Output structured JSON only.`,
       },
       {
         role: "user",
         content: `Topic: "${query}"
 
-Recent News Articles:
+Recent News Articles (past 7 days):
 ${newsText}
 
-Based on these articles:
-1. Extract 3 to 6 major turning points from this story. Order them chronologically from oldest to newest.
+Based ONLY on these recent articles:
+1. Extract 3 to 6 major developments from this story. Order them from oldest to newest based on article publish dates.
 2. Generate 3-6 topic tags in Traditional Chinese (e.g. "AI", "台灣", "外交", "科技", "軍事", "經濟", "能源", "選舉")
 3. Generate a concise topic title in Traditional Chinese (10 characters or less)
+
+CRITICAL RULES:
+- ONLY describe events from the provided articles. Do NOT add historical context from years ago.
+- date_label MUST be the actual publish date of the article (e.g., "2026年3月2日"), NOT a historical event date.
+- If articles are all from this week, all date_labels should be from this week.
 
 For each turning point:
 - title: concise title in Traditional Chinese (繁體中文)
 - title_en: concise title in English  
 - summary: 2-3 sentence summary in Traditional Chinese explaining what happened and why it matters
-- date_label: specific date or period (e.g., "2025年6月13日", "2026年2月底")
+- date_label: the publish date of the main article for this event (e.g., "2026年3月2日")
 - heat_level: "extreme" (global crisis), "high" (major international news), "medium" (regional significance), "low" (minor development)
 - is_active: true if this is the current/ongoing situation (most recent turning point)
 - keywords: 3-5 Chinese keywords for this event
-- article_count: estimated number of news articles about this event (realistic number based on coverage)
-- media_count: estimated number of media outlets covering this (realistic number)
+- article_count: number of provided articles relevant to this turning point
+- media_count: number of different media sources in the provided articles
 - source_urls: up to 3 relevant URLs from the provided articles`,
       },
     ],
@@ -264,7 +273,7 @@ function parseDateFromLabel(dateLabel: string): Date {
   return new Date();
 }
 
-// ─── Store Timeline in Database (增量新增，不清除舊轉折點) ─────────────────────────────────
+// ─── Store Timeline in Database (增量新增，不清除舊轉折點) ─────────────────────
 async function storeTimeline(
   topicId: number,
   turningPointsData: TurningPointData[]
@@ -280,6 +289,18 @@ async function storeTimeline(
   const existingTitles = new Set(existingTPs.map(tp => tp.title));
   const existingDateLabels = new Set(existingTPs.map(tp => tp.dateLabel));
 
+  // 過濾掉日期超過 30 天的轉折點（避免儲存歷史背景）
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const recentData = turningPointsData.filter(point => {
+    const eventDate = parseDateFromLabel(point.date_label);
+    return eventDate >= thirtyDaysAgo;
+  });
+  if (recentData.length < turningPointsData.length) {
+    console.log(`[Timeline] Filtered out ${turningPointsData.length - recentData.length} old turning points (>30 days)`);
+  }
+  // 如果過濾後沒有資料，使用全部資料（避免全空白）
+  const dataToStore = recentData.length > 0 ? recentData : turningPointsData;
+
   // 取得目前最大 sortOrder
   const [maxOrderRow] = await db
     .select({ maxOrder: sql<number>`MAX(${turningPoints.sortOrder})` })
@@ -287,7 +308,7 @@ async function storeTimeline(
     .where(eq(turningPoints.topicId, topicId));
   let nextSortOrder = (maxOrderRow?.maxOrder ?? -1) + 1;
 
-  for (const point of turningPointsData) {
+  for (const point of dataToStore) {
     // 去重：標題相同或日期標籤相同則跳過
     if (existingTitles.has(point.title) || existingDateLabels.has(point.date_label)) {
       console.log(`[Timeline] Skipping duplicate turning point: "${point.title}"`);

@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM news_articles WHERE turningPointId IS NOT NULL; DELETE FROM turning_points; UPDATE topics SET lastUpdated = '2020-01-01 00:00:00';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute DELETE FROM news_articles WHERE turningPointId IS NOT NULL; DELETE FROM turning_points; UPDATE topics SET lastUpdated = '2020-01-01 00:00:00';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2086
+}

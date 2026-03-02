@@ -1,0 +1,8 @@
+{
+  "query": "SELECT COUNT(*) as old_count FROM turning_points WHERE event_date < '2024-01-01'; SELECT COUNT(*) as total_count FROM turning_points;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT COUNT(*) as old_count FROM turning_points WHERE event_date < '2024-01-01'; SELECT COUNT(*) as total_count FROM turning_points;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'event_date' in 'where clause'"
+  ]
+}

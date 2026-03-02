@@ -1,0 +1,20 @@
+{
+  "query": "SELECT id, query, lastUpdated FROM topics WHERE query LIKE '%暖化%' OR query LIKE '%氣候%' LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT id, query, lastUpdated FROM topics WHERE query LIKE '%暖化%' OR query LIKE '%氣候%' LIMIT 5;",
+  "rows": [
+    {
+      "id": "30018",
+      "query": "全球暖化氣候變遷",
+      "lastUpdated": "2026-03-02 01:51:57"
+    },
+    {
+      "id": "30019",
+      "query": "COP 氣候峰會協議",
+      "lastUpdated": "2026-03-02 01:52:23"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquery\tlastUpdated\n30018\t全球暖化氣候變遷\t2026-03-02 01:51:57\n30019\tCOP 氣候峰會協議\t2026-03-02 01:52:23\n",
+  "stderr": "",
+  "execution_time_ms": 1561
+}

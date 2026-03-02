@@ -1,0 +1,13 @@
+{
+  "query": "SELECT COUNT(*) as old_count FROM turning_points WHERE eventDate < '2024-01-01';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT COUNT(*) as old_count FROM turning_points WHERE eventDate < '2024-01-01';",
+  "rows": [
+    {
+      "old_count": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "old_count\n0\n",
+  "stderr": "",
+  "execution_time_ms": 1506
+}

@@ -1,0 +1,14 @@
+{
+  "query": "SELECT YEAR(eventDate) as year, COUNT(*) as count FROM turning_points GROUP BY YEAR(eventDate) ORDER BY year;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT YEAR(eventDate) as year, COUNT(*) as count FROM turning_points GROUP BY YEAR(eventDate) ORDER BY year;",
+  "rows": [
+    {
+      "year": "2026",
+      "count": "324"
+    }
+  ],
+  "messages": [],
+  "stdout": "year\tcount\n2026\t324\n",
+  "stderr": "",
+  "execution_time_ms": 1602
+}
