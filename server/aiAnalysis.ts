@@ -6,7 +6,7 @@
 import { invokeLLM } from "./_core/llm";
 import { getDb } from "./db";
 import { topics, turningPoints, newsArticles, type InsertTurningPoint } from "../drizzle/schema";
-import { eq, desc, like } from "drizzle-orm";
+import { eq, desc, like, sql } from "drizzle-orm";
 
 // ─── Google News RSS Search ───────────────────────────────────────────────────
 
@@ -155,11 +155,17 @@ interface TurningPointData {
   source_urls: string[];
 }
 
+interface TimelineAnalysisResult {
+  turning_points: TurningPointData[];
+  tags: string[]; // 議題標籤，如 ["AI","科技","台灣"]
+  topic_title: string; // 議題簡潔標題
+}
+
 async function formatTimelineFromNews(
   query: string,
   newsText: string,
   newsItems: NewsItem[]
-): Promise<TurningPointData[]> {
+): Promise<TimelineAnalysisResult> {
   const sourceUrls = newsItems.slice(0, 15).map((item) => item.url);
 
   const response = await invokeLLM({
@@ -175,7 +181,12 @@ async function formatTimelineFromNews(
 Recent News Articles:
 ${newsText}
 
-Based on these articles, extract 3 to 6 major turning points from this story. Order them chronologically from oldest to newest. For each turning point:
+Based on these articles:
+1. Extract 3 to 6 major turning points from this story. Order them chronologically from oldest to newest.
+2. Generate 3-6 topic tags in Traditional Chinese (e.g. "AI", "台灣", "外交", "科技", "軍事", "經濟", "能源", "選舉")
+3. Generate a concise topic title in Traditional Chinese (10 characters or less)
+
+For each turning point:
 - title: concise title in Traditional Chinese (繁體中文)
 - title_en: concise title in English  
 - summary: 2-3 sentence summary in Traditional Chinese explaining what happened and why it matters
@@ -196,6 +207,8 @@ Based on these articles, extract 3 to 6 major turning points from this story. Or
         schema: {
           type: "object",
           properties: {
+            topic_title: { type: "string" },
+            tags: { type: "array", items: { type: "string" } },
             turning_points: {
               type: "array",
               items: {
@@ -221,7 +234,7 @@ Based on these articles, extract 3 to 6 major turning points from this story. Or
               },
             },
           },
-          required: ["turning_points"],
+          required: ["topic_title", "tags", "turning_points"],
           additionalProperties: false,
         },
       },
@@ -229,11 +242,29 @@ Based on these articles, extract 3 to 6 major turning points from this story. Or
   });
 
   const content = response.choices[0]?.message?.content;
-  const parsed = typeof content === "string" ? JSON.parse(content) : content;
-  return (parsed?.turning_points as TurningPointData[]) ?? [];
+  const parsed = (typeof content === "string" ? JSON.parse(content) : content) as TimelineAnalysisResult;
+  return parsed ?? { turning_points: [], tags: [], topic_title: query };
 }
 
-// ─── Store Timeline in Database ───────────────────────────────────────────────
+// ─── Parse date from date_label string ──────────────────────────────────────────────────────────────
+function parseDateFromLabel(dateLabel: string): Date {
+  // 嘗試解析常見格式："2025年6月13日"、"2026年2月底"、"2024年底"
+  const yearMonthDay = dateLabel.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+  if (yearMonthDay) {
+    return new Date(Number(yearMonthDay[1]), Number(yearMonthDay[2]) - 1, Number(yearMonthDay[3]));
+  }
+  const yearMonth = dateLabel.match(/(\d{4})年(\d{1,2})月/);
+  if (yearMonth) {
+    return new Date(Number(yearMonth[1]), Number(yearMonth[2]) - 1, 15);
+  }
+  const yearOnly = dateLabel.match(/(\d{4})年/);
+  if (yearOnly) {
+    return new Date(Number(yearOnly[1]), 6, 1);
+  }
+  return new Date();
+}
+
+// ─── Store Timeline in Database (增量新增，不清除舊轉折點) ─────────────────────────────────
 async function storeTimeline(
   topicId: number,
   turningPointsData: TurningPointData[]
@@ -241,11 +272,30 @@ async function storeTimeline(
   const db = await getDb();
   if (!db) return;
 
-  // Clear existing turning points for this topic (re-analysis)
-  await db.delete(turningPoints).where(eq(turningPoints.topicId, topicId));
+  // 取得現有轉折點標題，用於去重
+  const existingTPs = await db
+    .select({ title: turningPoints.title, dateLabel: turningPoints.dateLabel })
+    .from(turningPoints)
+    .where(eq(turningPoints.topicId, topicId));
+  const existingTitles = new Set(existingTPs.map(tp => tp.title));
+  const existingDateLabels = new Set(existingTPs.map(tp => tp.dateLabel));
 
-  for (let i = 0; i < turningPointsData.length; i++) {
-    const point = turningPointsData[i]!;
+  // 取得目前最大 sortOrder
+  const [maxOrderRow] = await db
+    .select({ maxOrder: sql<number>`MAX(${turningPoints.sortOrder})` })
+    .from(turningPoints)
+    .where(eq(turningPoints.topicId, topicId));
+  let nextSortOrder = (maxOrderRow?.maxOrder ?? -1) + 1;
+
+  for (const point of turningPointsData) {
+    // 去重：標題相同或日期標籤相同則跳過
+    if (existingTitles.has(point.title) || existingDateLabels.has(point.date_label)) {
+      console.log(`[Timeline] Skipping duplicate turning point: "${point.title}"`);
+      continue;
+    }
+
+    // 解析事件日期
+    const eventDate = parseDateFromLabel(point.date_label);
 
     const newPoint: InsertTurningPoint = {
       topicId,
@@ -253,28 +303,26 @@ async function storeTimeline(
       titleEn: point.title_en,
       summary: point.summary,
       dateLabel: point.date_label,
-      eventDate: new Date(),
+      eventDate,
       articleCount: Math.max(1, Math.round(point.article_count)),
       mediaCount: Math.max(1, Math.round(point.media_count)),
       heatLevel: point.heat_level,
       isActive: point.is_active ? 1 : 0,
-      sortOrder: i,
+      sortOrder: nextSortOrder++,
     };
 
     await db.insert(turningPoints).values(newPoint);
 
-    // Get the inserted turning point ID
-    const insertedTPs = await db
+    // 取得剛插入的轉折點 ID
+    const [latestTP] = await db
       .select()
       .from(turningPoints)
       .where(eq(turningPoints.topicId, topicId))
       .orderBy(desc(turningPoints.createdAt))
-      .limit(turningPointsData.length);
+      .limit(1);
+    if (!latestTP) continue;
 
-    const tpRecord = insertedTPs[insertedTPs.length - 1 - i];
-    if (!tpRecord) continue;
-
-    // Store source articles
+    // 儲存來源文章
     const sourceUrls = point.source_urls.slice(0, 3);
     for (const url of sourceUrls) {
       if (!url || url.length < 10) continue;
@@ -283,19 +331,23 @@ async function storeTimeline(
           title: `${point.title} — 相關報導`,
           url,
           source: extractDomain(url),
-          publishedAt: new Date(),
+          publishedAt: eventDate,
           topicId,
-          turningPointId: tpRecord.id,
+          turningPointId: latestTP.id,
           language: "zh-TW",
         });
       } catch {
         // Ignore duplicate URL errors
       }
     }
+
+    // 更新去重集合
+    existingTitles.add(point.title);
+    existingDateLabels.add(point.date_label);
   }
 }
 
-// ─── Build Topic Timeline (Full Pipeline) ────────────────────────────────────
+// ─── Build Topic Timeline (Full Pipeline) ────────────────────────────────────────────
 export async function buildTopicTimeline(query: string): Promise<{
   topic: typeof topics.$inferSelect | null;
   turningPointsList: Array<typeof turningPoints.$inferSelect & { news: Array<typeof newsArticles.$inferSelect> }>;
@@ -393,10 +445,13 @@ export async function buildTopicTimeline(query: string): Promise<{
   console.log(`[Timeline] Found ${newsItems.length} articles, formatting timeline...`);
 
   // Step 4: Format into timeline using Gemini
-  const turningPointsData = await formatTimelineFromNews(query, rawText, newsItems);
-  console.log(`[Timeline] Detected ${turningPointsData.length} turning points`);
+  const analysisResult = await formatTimelineFromNews(query, rawText, newsItems);
+  const turningPointsData = analysisResult.turning_points;
+  const topicTags = analysisResult.tags ?? [];
+  const topicTitle = analysisResult.topic_title || query;
+  console.log(`[Timeline] Detected ${turningPointsData.length} turning points, tags: ${topicTags.join(', ')}`);
 
-  // Step 5: Update topic stats
+  // Step 5: Update topic stats + tags
   const totalArticles = turningPointsData.reduce((sum, tp) => sum + tp.article_count, 0);
   const maxMedia = Math.max(...turningPointsData.map((tp) => tp.media_count), 0);
   const maxHeat = turningPointsData.some((tp) => tp.heat_level === "extreme")
@@ -412,6 +467,10 @@ export async function buildTopicTimeline(query: string): Promise<{
       totalMedia: maxMedia,
       heatLevel: maxHeat,
       lastUpdated: new Date(),
+      // 儲存標籤（JSON 字串）
+      tags: JSON.stringify(topicTags),
+      // 如果標題是預設查詢，更新為 AI 生成的簡潔標題
+      ...(topic.query === query && topicTitle !== query ? { query: topicTitle } : {}),
     })
     .where(eq(topics.id, topic.id));
 
@@ -423,7 +482,7 @@ export async function buildTopicTimeline(query: string): Promise<{
     .select()
     .from(turningPoints)
     .where(eq(turningPoints.topicId, topic.id))
-    .orderBy(turningPoints.sortOrder);
+    .orderBy(desc(turningPoints.eventDate)); // 最新轉折點在最前
 
   const result = await Promise.all(
     tpList.map(async (tp) => {

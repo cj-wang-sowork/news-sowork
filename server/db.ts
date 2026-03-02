@@ -61,7 +61,8 @@ export async function getHotTopics(limit = 12) {
   return db
     .select()
     .from(topics)
-    .orderBy(desc(sql`${topics.totalArticles} * ${topics.totalMedia}`))
+    .where(eq(topics.isActive, 1))
+    .orderBy(desc(topics.lastUpdated))
     .limit(limit);
 }
 
@@ -79,7 +80,7 @@ export async function getTopicTurningPoints(topicId: number) {
     .select()
     .from(turningPoints)
     .where(eq(turningPoints.topicId, topicId))
-    .orderBy(turningPoints.sortOrder);
+    .orderBy(desc(turningPoints.eventDate)); // 最新轉折點在最前
 }
 
 export async function getTurningPointNews(turningPointId: number, limit = 5) {

@@ -88,7 +88,7 @@ export const appRouter = router({
       .input(z.object({
         limit: z.number().min(1).max(50).default(24),
         offset: z.number().min(0).default(0),
-        category: z.string().optional(),
+        tag: z.string().optional(), // 標籤篩選
       }).optional())
       .query(async ({ input }) => {
         const db = await getDb();
@@ -96,21 +96,24 @@ export const appRouter = router({
         const limit = input?.limit ?? 24;
         const offset = input?.offset ?? 0;
 
-        const baseWhere = sql`${topics.visibility} = 'public' AND ${topics.isActive} = 1`;
-        const categoryWhere = input?.category
-          ? sql`${baseWhere} AND ${topics.category} = ${input.category}`
-          : baseWhere;
+        // 基礎条件：公開 + 啟用
+        let baseCondition = sql`${topics.visibility} = 'public' AND ${topics.isActive} = 1`;
+
+        // 標籤篩選：用 JSON_CONTAINS 或 LIKE 比對
+        if (input?.tag) {
+          baseCondition = sql`${topics.visibility} = 'public' AND ${topics.isActive} = 1 AND JSON_CONTAINS(${topics.tags}, ${JSON.stringify(input.tag)})`;
+        }
 
         const [countRow] = await db
           .select({ count: sql<number>`COUNT(*)` })
           .from(topics)
-          .where(categoryWhere);
+          .where(baseCondition);
 
         const items = await db
           .select()
           .from(topics)
-          .where(categoryWhere)
-          .orderBy(desc(sql`${topics.viewCount} + ${topics.totalArticles} * 2`))
+          .where(baseCondition)
+          .orderBy(desc(topics.lastUpdated)) // 最新更新的議題在最前
           .limit(limit)
           .offset(offset);
 
