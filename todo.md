@@ -246,3 +246,9 @@
 - [x] 修復：getProgress 改用「轉折點數 > 0」作為完成判斷，正確反映 AI 分析完成狀態
 - [x] 測試：張亮麻辣燙議題現在回傳 status: ready，進度條正確消失
 - [x] 11 項測試全部通過
+
+## Sprint 30 — 手機 Navbar 漢堡選單
+- [x] 手機版 ≡ 點擊後開啟 mobile drawer（從右側滑出，含動畫）
+- [x] Drawer 包含：Explore、我的議題、建立議題、登入/登出、語言切換
+- [x] 點擊 drawer 外部或連結後自動關閉；開啟時鎖定 body scroll
+- [x] 桌面版 Navbar 保持不變
