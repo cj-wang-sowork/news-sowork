@@ -110,7 +110,7 @@ export default function RegisterPage() {
             免費加入 NewsFlow
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            追蹤全球議題，獲得 100 歡迎點數
+追蹤全球議題，搶先體驗 AI 新語分析
           </p>
         </div>
 
@@ -248,7 +248,7 @@ export default function RegisterPage() {
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   建立帳號中...
                 </>
-              ) : '建立帳號，獲得 100 點'}
+              ) : '免費建立帳號'}
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">

@@ -16,7 +16,6 @@ import { triggerManualUpdate } from "./scheduler";
 import { getDb } from "./db";
 import {
   topics,
-  turningPoints,
   newsArticles,
   users,
   pointTransactions,
@@ -560,9 +559,7 @@ export const appRouter = router({
           .where(eq(turningPoints.topicId, topic.id));
         const turningPointCount = Number(tpRow?.count ?? 0);
         const TARGET = 50;
-        // 判斷完成：轉折點 > 0 表示 AI 已分析完成；文章數 >= TARGET 也算完成
-        // 注意：文章是 AI 分析後儲存的參考 URL，通常只有 3-9 篇，不會達到 50 篇
-        const status = (turningPointCount > 0 || articleCount >= TARGET) ? 'ready' : 'collecting';
+        const status = articleCount >= TARGET ? 'ready' : 'collecting';
         return { articleCount, turningPointCount, target: TARGET, status, lastUpdated: topic.lastUpdated };
       }),
 
@@ -715,25 +712,13 @@ export const appRouter = router({
           language: z.string().default("zh-TW"),
         })
       )
-      .mutation(async ({ ctx, input }) => {
-        const db = await getDb();
-        if (!db) throw new Error("資料庫連線失敗");
-
-        // 檢查點數是否足夠
-        const [userRow] = await db.select({ points: users.points }).from(users).where(eq(users.id, ctx.user.id));
-        const currentPoints = userRow?.points ?? 0;
-        if (currentPoints < POINT_COST_AI_STANCE) {
-          throw new Error(`點數不足！使用 AI 立場回覆需要 ${POINT_COST_AI_STANCE} 點，您目前只有 ${currentPoints} 點。`);
-        }
-
-        // 扣點
-        await addPoints(db, ctx.user.id, -POINT_COST_AI_STANCE, "ai_usage", undefined, `AI 立場回覆：${input.topicTitle}`);
-
+      .mutation(async ({ ctx: _ctx, input }) => {
+        // 點數系統開發中：暫時對所有登入用戶免費開放
         const response = await generateStanceResponse(input);
         return {
           content: response,
-          pointsUsed: POINT_COST_AI_STANCE,
-          pointsRemaining: currentPoints - POINT_COST_AI_STANCE,
+          pointsUsed: 0,
+          pointsRemaining: 0,
         };
       }),
 
@@ -801,18 +786,9 @@ ${input.topicCategory ? `分類：${input.topicCategory}` : ''}
         responseType: z.enum(['press', 'social', 'memo']),
         topicTitle: z.string().min(1).max(256),
       }))
-      .mutation(async ({ ctx, input }) => {
+      .mutation(async ({ ctx: _ctx, input }) => {
         const { invokeLLM } = await import("./_core/llm");
-        const db = await getDb();
-        if (!db) throw new Error('資料庫連線失敗');
-        // 檢查點數
-        const [userRow] = await db.select({ points: users.points }).from(users).where(eq(users.id, ctx.user.id));
-        const currentPoints = userRow?.points ?? 0;
-        const REFINE_COST = 5;
-        if (currentPoints < REFINE_COST) {
-          throw new Error(`點數不足！修改內容需要 ${REFINE_COST} 點，您目前只有 ${currentPoints} 點。`);
-        }
-        await addPoints(db, ctx.user.id, -REFINE_COST, 'ai_usage', undefined, `AI 內容修改：${input.topicTitle}`);
+        // 點數系統開發中：暫時對所有登入用戶免費開放
         const typeLabel = { press: '新語稿', social: '社群貼文', memo: '內部備忘' }[input.responseType];
         const refinePrompt = `你是一個專業的內容編輯師。
 
@@ -835,8 +811,8 @@ ${input.currentContent}
         const refined = result.choices?.[0]?.message?.content ?? input.currentContent;
         return {
           content: refined,
-          pointsUsed: REFINE_COST,
-          pointsRemaining: currentPoints - REFINE_COST,
+          pointsUsed: 0,
+          pointsRemaining: 0,
         };
       }),
   }),
@@ -894,68 +870,6 @@ ${input.currentContent}
           }
         }
         return { results, successCount: results.filter(r => r.success).length };
-      }),
-
-    // 合併重複議題：將多個議題的轉折點合併到主議題
-    mergeTopics: protectedProcedure
-      .input(z.object({
-        primaryTopicId: z.number().int().positive(),
-        mergeTopicIds: z.array(z.number().int().positive()).min(1).max(20),
-        newTitle: z.string().min(1).max(100).optional(),
-      }))
-      .mutation(async ({ input }) => {
-        const db = await getDb();
-        if (!db) throw new Error('資料庫連線失敗');
-
-        const { primaryTopicId, mergeTopicIds, newTitle } = input;
-        let movedCount = 0;
-        let skippedCount = 0;
-
-        for (const fromId of mergeTopicIds) {
-          if (fromId === primaryTopicId) continue;
-
-          const tpsToMove = await db.select().from(turningPoints).where(eq(turningPoints.topicId, fromId));
-
-          const existingTPs = await db
-            .select({ title: turningPoints.title, dateLabel: turningPoints.dateLabel })
-            .from(turningPoints)
-            .where(eq(turningPoints.topicId, primaryTopicId));
-          const existingTitles = new Set(existingTPs.map(t => t.title));
-          const existingDates = new Set(existingTPs.map(t => t.dateLabel));
-
-          for (const tp of tpsToMove) {
-            if (existingTitles.has(tp.title) || existingDates.has(tp.dateLabel)) {
-              skippedCount++;
-              continue;
-            }
-            await db.update(turningPoints).set({ topicId: primaryTopicId }).where(eq(turningPoints.id, tp.id));
-            await db.update(newsArticles).set({ topicId: primaryTopicId }).where(eq(newsArticles.turningPointId, tp.id));
-            movedCount++;
-          }
-
-          // 刪除被合併的議題
-          await db.delete(newsArticles).where(eq(newsArticles.topicId, fromId));
-          await db.delete(turningPoints).where(eq(turningPoints.topicId, fromId));
-          await db.delete(userTopics).where(eq(userTopics.topicId, fromId));
-          await db.delete(topics).where(eq(topics.id, fromId));
-        }
-
-        // 更新主議題統計
-        const allTPs = await db.select().from(turningPoints).where(eq(turningPoints.topicId, primaryTopicId));
-        await db.update(topics).set({
-          ...(newTitle ? { query: newTitle } : {}),
-          totalArticles: allTPs.reduce((s, tp) => s + (tp.articleCount ?? 0), 0),
-          totalMedia: Math.max(...allTPs.map(tp => tp.mediaCount ?? 0), 0),
-          lastUpdated: new Date(),
-        }).where(eq(topics.id, primaryTopicId));
-
-        return {
-          success: true,
-          movedTurningPoints: movedCount,
-          skippedDuplicates: skippedCount,
-          mergedTopicsCount: mergeTopicIds.length,
-          message: `合併完成！移入 ${movedCount} 個轉折點，跳過 ${skippedCount} 個重複，刪除 ${mergeTopicIds.length} 個重複議題`,
-        };
       }),
   }),
 });

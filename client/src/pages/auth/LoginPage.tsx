@@ -108,7 +108,7 @@ export default function LoginPage() {
             歡迎回來
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            登入以追蹤議題、賺取點數
+登入以追蹤議題、體驗 AI 分析
           </p>
         </div>
 

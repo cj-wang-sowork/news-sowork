@@ -114,16 +114,13 @@ export async function updateTopicStats(topicId: number) {
     .select({
       totalArticles: sql<number>`COUNT(DISTINCT ${newsArticles.id})`,
       totalMedia: sql<number>`COUNT(DISTINCT ${newsArticles.source})`,
-      latestNewsAt: sql<Date | null>`MAX(${newsArticles.publishedAt})`,
     })
     .from(newsArticles)
     .where(eq(newsArticles.topicId, topicId));
   if (stats) {
-    // lastUpdated 使用最新一篇新聞的發布時間，讓卡片上的時間反映「最後有新聞的時間」
-    const lastUpdated = stats.latestNewsAt ? new Date(stats.latestNewsAt) : new Date();
     await db
       .update(topics)
-      .set({ totalArticles: stats.totalArticles, totalMedia: stats.totalMedia, lastUpdated })
+      .set({ totalArticles: stats.totalArticles, totalMedia: stats.totalMedia, lastUpdated: new Date() })
       .where(eq(topics.id, topicId));
   }
 }

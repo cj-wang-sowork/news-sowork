@@ -5,9 +5,9 @@
 
 import { invokeLLM } from "./_core/llm";
 import { ENV } from "./_core/env";
-import { getDb, updateTopicStats } from "./db";
+import { getDb } from "./db";
 import { topics, turningPoints, newsArticles, type InsertTurningPoint } from "../drizzle/schema";
-import { eq, desc, like, sql, or, inArray } from "drizzle-orm";
+import { eq, desc, like, sql } from "drizzle-orm";
 
 // ─── Google News RSS Search ───────────────────────────────────────────────────
 
@@ -371,14 +371,8 @@ function parseDateFromLabel(dateLabel: string): Date {
 // ─── Store Timeline in Database (增量新增，不清除舊轉折點) ─────────────────────
 async function storeTimeline(
   topicId: number,
-  turningPointsData: TurningPointData[],
-  newsItems: NewsItem[] = [] // 真實 RSS 文章列表，用於匹配真實標題和媒體名稱
+  turningPointsData: TurningPointData[]
 ): Promise<void> {
-  // 建立 URL 到真實文章的對映表
-  const urlToArticle = new Map<string, NewsItem>();
-  for (const item of newsItems) {
-    urlToArticle.set(item.url, item);
-  }
   const db = await getDb();
   if (!db) return;
 
@@ -444,29 +438,19 @@ async function storeTimeline(
       .limit(1);
     if (!latestTP) continue;
 
-    // 儲存來源文章（優先使用真實 RSS 標題和媒體名稱）
-    const sourceUrls = point.source_urls.slice(0, 5); // 最多儲 5 篇
+    // 儲存來源文章
+    const sourceUrls = point.source_urls.slice(0, 3);
     for (const url of sourceUrls) {
       if (!url || url.length < 10) continue;
       try {
-        // 嘗試從 newsItems 中找到對應的真實文章
-        const realArticle = urlToArticle.get(url);
-        const articleTitle = realArticle?.title ?? `${point.title} — 相關報導`;
-        const articleSource = realArticle?.source ?? extractDomain(url);
-        const articlePublishedAt = realArticle?.publishedAt ? new Date(realArticle.publishedAt) : eventDate;
-        const articleLang = realArticle ? (
-          /[一-鿿㐀-䶿]/.test(realArticle.title) ? 'zh-TW' :
-          /[一-鿿]/.test(realArticle.title) ? 'zh-CN' : 'en'
-        ) : 'zh-TW';
-
         await db.insert(newsArticles).values({
-          title: articleTitle,
+          title: `${point.title} — 相關報導`,
           url,
-          source: articleSource,
-          publishedAt: articlePublishedAt,
+          source: extractDomain(url),
+          publishedAt: eventDate,
           topicId,
           turningPointId: latestTP.id,
-          language: articleLang,
+          language: "zh-TW",
         });
       } catch {
         // Ignore duplicate URL errors
@@ -614,141 +598,12 @@ export async function buildTopicTimeline(query: string): Promise<{
   }
 
   console.log(`[Timeline] Searching Google News for: "${searchQuery}"`);
-  // Step 3b: 語意比對現有議題 — 搜尋前先確認是否應累積到現有議題
-  let targetTopic = topic;
-  if (!topic) {
-    // 只有在沒有完全匹配的議題時才做語意比對
-    try {
-      const recentTopics = await db
-        .select({ id: topics.id, query: topics.query, slug: topics.slug, tags: topics.tags })
-        .from(topics)
-        .orderBy(desc(topics.lastUpdated))
-        .limit(30);
-
-      if (recentTopics.length > 0) {
-        const topicListStr = recentTopics.map(t => `ID:${t.id} 標題:"${t.query}" 標籤:${t.tags ?? '[]'}`).join('\n');
-        const llmForMatch = selectLLM(queryLanguage);
-        const matchResp = await llmForMatch({
-          messages: [
-            {
-              role: 'system',
-              content: '你是新聞議題分類專家。判斷新查詢是否屬於現有議題之一（語意相同或高度相關）。若是，回傳對應的議題 ID；若是全新事件，回傳 -1。'
-            },
-            {
-              role: 'user',
-              content: `新查詢：「${query}」（搜尋關鍵字：「${searchQuery}」）\n\n現有議題列表：\n${topicListStr}\n\n請判斷新查詢是否屬於上述某個現有議題。若是，回傳該議題的 ID；若是全新事件，回傳 -1。`
-            }
-          ],
-          response_format: {
-            type: 'json_schema',
-            json_schema: {
-              name: 'topic_match',
-              strict: true,
-              schema: {
-                type: 'object',
-                properties: {
-                  matched_id: { type: 'number', description: '匹配的議題 ID，若無匹配則為 -1' },
-                  confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-                  reason: { type: 'string' }
-                },
-                required: ['matched_id', 'confidence', 'reason'],
-                additionalProperties: false
-              }
-            }
-          }
-        });
-        const matchContent = matchResp.choices?.[0]?.message?.content;
-        if (matchContent) {
-          const matchResult = typeof matchContent === 'string' ? JSON.parse(matchContent) : matchContent;
-          if (matchResult.matched_id && matchResult.matched_id > 0 && matchResult.confidence !== 'low') {
-            const matchedTopics = await db.select().from(topics).where(eq(topics.id, matchResult.matched_id)).limit(1);
-            if (matchedTopics[0]) {
-              targetTopic = matchedTopics[0];
-              console.log(`[Timeline] Matched to existing topic: "${targetTopic.query}" (ID:${targetTopic.id}) — ${matchResult.reason}`);
-            }
-          } else {
-            console.log(`[Timeline] No match found (${matchResult.confidence}): ${matchResult.reason}`);
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('[Timeline] Topic matching failed, proceeding with new topic:', (err as Error).message);
-    }
-  }
-
-  // 若語意比對到現有議題，使用該議題
-  if (targetTopic && targetTopic.id !== topic?.id) {
-    topic = targetTopic;
-  }
-
-  // Step 3c: 多關鍵字搜尋 — 用 AI 擴展的所有關鍵字搜尋，增加文章覆蓋率
-  let allNewsItems: NewsItem[] = [];
-  let combinedRawText = '';
-
-  // 先用主查詢詞搜尋
-  const { items: primaryItems, rawText: primaryRawText } = await searchGoogleNews(searchQuery, 50);
-  allNewsItems.push(...primaryItems);
-
-  // 再用其他關鍵字補充搜尋（最多 2 個額外關鍵字）
-  try {
-    const extraKeywordsResp = await selectLLM(queryLanguage)({
-      messages: [
-        { role: 'system', content: 'You are a news search expert. Return 2-3 alternative search keywords for the same topic to maximize news coverage. Return JSON only.' },
-        { role: 'user', content: `Topic: "${query}" (primary search: "${searchQuery}")\nReturn 2-3 alternative keywords in the same language as the topic.` }
-      ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          name: 'extra_keywords',
-          strict: true,
-          schema: {
-            type: 'object',
-            properties: { keywords: { type: 'array', items: { type: 'string' } } },
-            required: ['keywords'],
-            additionalProperties: false
-          }
-        }
-      }
-    });
-    const ekContent = extraKeywordsResp.choices?.[0]?.message?.content;
-    if (ekContent) {
-      const ekParsed = typeof ekContent === 'string' ? JSON.parse(ekContent) : ekContent;
-      const extraKeywords: string[] = (ekParsed?.keywords ?? []).slice(0, 2);
-      for (const kw of extraKeywords) {
-        if (kw && kw !== searchQuery && kw !== query) {
-          try {
-            const { items: extraItems } = await searchGoogleNews(kw, 30);
-            allNewsItems.push(...extraItems);
-            console.log(`[Timeline] Extra keyword "${kw}" found ${extraItems.length} articles`);
-          } catch { /* ignore */ }
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('[Timeline] Extra keyword search failed:', (err as Error).message);
-  }
-
-  // 去重合併
-  const seenUrls = new Set<string>();
-  const deduped = allNewsItems.filter(item => {
-    if (seenUrls.has(item.url)) return false;
-    seenUrls.add(item.url);
-    return true;
-  });
-  deduped.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-  const newsItems = deduped.slice(0, 80);
-  combinedRawText = newsItems
-    .map((item, i) => `[${i + 1}] ${item.publishedAt} — ${item.source}\n標題: ${item.title}\n摘要: ${item.description}`)
-    .join('\n\n');
-
-  console.log(`[Timeline] Total unique articles after multi-keyword search: ${newsItems.length}`);
+  const { items: newsItems, rawText } = await searchGoogleNews(searchQuery);
 
   if (newsItems.length === 0) {
     console.warn(`[Timeline] No news found for: "${query}"`);
     return { topic, turningPointsList: [] };
   }
-
-  const rawText = combinedRawText;
 
   console.log(`[Timeline] Found ${newsItems.length} articles, formatting timeline...`);
 
@@ -783,10 +638,7 @@ export async function buildTopicTimeline(query: string): Promise<{
     .where(eq(topics.id, topic.id));
 
   // Step 6: Store timeline in DB
-  await storeTimeline(topic.id, turningPointsData, newsItems);
-
-  // Step 6b: 更新真實的文章數和媒體家數（用真實 source domain 去重計算）
-  await updateTopicStats(topic.id);
+  await storeTimeline(topic.id, turningPointsData);
 
   // Step 7: Return complete timeline
   const tpList = await db

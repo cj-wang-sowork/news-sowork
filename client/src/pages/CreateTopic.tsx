@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import {
-  ArrowLeft, Globe, Lock, Zap, Loader2, AlertCircle, Coins,
+  ArrowLeft, Globe, Lock, Zap, Loader2, AlertCircle,
   ChevronRight, CheckCircle2, Search, RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -40,8 +40,6 @@ export default function CreateTopic() {
   const [selectedCandidate, setSelectedCandidate] = useState<DisambiguateCandidate | null>(null);
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [error, setError] = useState<string | null>(null);
-
-  const { data: pointsData } = trpc.points.balance.useQuery(undefined, { enabled: !!user });
 
   // Step 1 → 歧義消解
   const disambiguateMutation = trpc.topics.disambiguate.useMutation({
@@ -180,15 +178,15 @@ export default function CreateTopic() {
           })}
         </div>
 
-        {/* Points Info */}
+        {/* Info Banner */}
         <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 mb-6 flex items-center gap-3">
-          <Coins className="w-5 h-5 text-[#FF5A1F] flex-shrink-0" />
+          <Zap className="w-5 h-5 text-[#FF5A1F] flex-shrink-0" />
           <div>
             <p className="text-sm font-semibold text-foreground">
-              你目前有 <span className="text-[#FF5A1F]">{pointsData?.points ?? 0} 點</span>
+              免費建立議題，無限追蹤
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              建立公開議題免費。每次被他人瀏覽，你可賺取 1 點。AI 功能消耗 10 點。
+              AI 自動分析轉折點，讓你在 30 秒內握握一個事件的完整演變。
             </p>
           </div>
         </div>

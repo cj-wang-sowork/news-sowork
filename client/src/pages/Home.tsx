@@ -282,11 +282,9 @@ export default function Home() {
 
   // Filter by category and tag
   const filteredTopics = useMemo(() => {
-    // 隱藏 0 篇報導的議題（尚未收集到新聞）
-    let result = allTopics.filter(t => (t.totalArticles ?? 0) > 0);
-    if (selectedCategory !== '全部') {
-      result = result.filter(t => t.category === selectedCategory);
-    }
+    let result = selectedCategory === '全部'
+      ? allTopics
+      : allTopics.filter(t => t.category === selectedCategory);
     if (selectedTag) {
       result = result.filter(t => t.tags?.includes(selectedTag));
     }
@@ -427,8 +425,8 @@ export default function Home() {
                   <Coins className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-foreground">建立議題，賺取點數！</p>
-                  <p className="text-xs text-muted-foreground">登入後可建立公開議題，每次被瀏覽賺 1 點。點數可用於 AI 分析功能。</p>
+                  <p className="text-sm font-bold text-foreground">建立議題，分享你的觀點！</p>
+                  <p className="text-xs text-muted-foreground">登入後可免費建立公開議題，讓 AI 幫你追蹤事件演變。</p>
                 </div>
               </div>
               <Button
@@ -563,14 +561,18 @@ export default function Home() {
         )}
       </section>
 
-      {/* Points Explainer Section */}
+      {/* Coming Soon Section */}
       <section className="bg-white border-t border-border">
         <div className="container py-14">
           <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-full px-4 py-1.5 mb-4">
+              <span className="w-2 h-2 rounded-full bg-[#FF5A1F] animate-pulse" />
+              <span className="text-xs font-semibold text-[#FF5A1F] uppercase tracking-wide">努力開發中</span>
+            </div>
             <h2 className="text-2xl font-extrabold text-foreground mb-2" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
-              如何賺取與使用點數？
+              更多功能即將推出
             </h2>
-            <p className="text-sm text-muted-foreground">NewsFlow 點數系統，讓優質內容創作者獲得回報</p>
+            <p className="text-sm text-muted-foreground">我們正在努力打造更好的 NewsFlow 體驗</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
@@ -578,26 +580,33 @@ export default function Home() {
                 icon: <Plus className="w-6 h-6 text-[#FF5A1F]" />,
                 title: '建立公開議題',
                 desc: '登入後免費建立議題，選擇公開讓所有人瀏覽',
-                badge: '免費',
+                badge: '現已開放',
                 badgeColor: 'bg-green-50 text-green-700',
+                active: true,
               },
               {
-                icon: <Eye className="w-6 h-6 text-[#FF5A1F]" />,
-                title: '被瀏覽賺點數',
-                desc: '每次其他用戶瀏覽你的公開議題，你賺取 1 點（24 小時去重）',
-                badge: '+1 點/次',
-                badgeColor: 'bg-orange-50 text-orange-700',
+                icon: <Eye className="w-6 h-6 text-muted-foreground" />,
+                title: '創作者回饋機制',
+                desc: '優質議題創作者將獲得回饋獎勵，鼓勵高品質內容產出',
+                badge: '開發中',
+                badgeColor: 'bg-gray-100 text-gray-500',
+                active: false,
               },
               {
-                icon: <Coins className="w-6 h-6 text-[#FF5A1F]" />,
-                title: '點數換 AI 功能',
-                desc: '使用 AI 立場回覆建議等進階功能，每次消耗 10 點',
-                badge: '-10 點/次',
-                badgeColor: 'bg-blue-50 text-blue-700',
+                icon: <Coins className="w-6 h-6 text-muted-foreground" />,
+                title: '進階 AI 功能',
+                desc: '更強大的 AI 分析、個人化推薦與深度報告功能即將推出',
+                badge: '開發中',
+                badgeColor: 'bg-gray-100 text-gray-500',
+                active: false,
               },
             ].map((item, i) => (
-              <div key={i} className="flex flex-col items-center text-center p-6 rounded-2xl border border-border hover:border-[#FF5A1F]/30 transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-[#FF5A1F]/10 flex items-center justify-center mb-4">
+              <div key={i} className={`flex flex-col items-center text-center p-6 rounded-2xl border transition-colors ${
+                item.active ? 'border-[#FF5A1F]/20 hover:border-[#FF5A1F]/40' : 'border-border opacity-60'
+              }`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
+                  item.active ? 'bg-[#FF5A1F]/10' : 'bg-gray-100'
+                }`}>
                   {item.icon}
                 </div>
                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mb-3 ${item.badgeColor}`}>
@@ -616,7 +625,7 @@ export default function Home() {
                 onClick={() => { window.location.href = getLoginUrl(); }}
                 className="bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-semibold px-8"
               >
-                立即免費登入，開始賺點數
+                立即免費登入，搶先體驗
               </Button>
             </div>
           )}
