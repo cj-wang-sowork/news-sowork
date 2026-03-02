@@ -559,7 +559,9 @@ export const appRouter = router({
           .where(eq(turningPoints.topicId, topic.id));
         const turningPointCount = Number(tpRow?.count ?? 0);
         const TARGET = 50;
-        const status = articleCount >= TARGET ? 'ready' : 'collecting';
+        // 判斷完成：轉折點 > 0 表示 AI 已分析完成；文章數 >= TARGET 也算完成
+        // 注意：文章是 AI 分析後儲存的參考 URL，通常只有 3-9 篇，不會達到 50 篇
+        const status = (turningPointCount > 0 || articleCount >= TARGET) ? 'ready' : 'collecting';
         return { articleCount, turningPointCount, target: TARGET, status, lastUpdated: topic.lastUpdated };
       }),
 

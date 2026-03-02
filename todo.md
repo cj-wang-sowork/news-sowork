@@ -240,3 +240,9 @@
 - [x] 後端：topics.stats 新增 rssSourceCount 欄位（從 rss_sources 表計算）
 - [x] 前端：Stats Bar 新增「RSS 新聞來源」欄位（即時從資料庫讀取，未同步前顯示 202）
 - [x] 前端：Stats Bar 追蹤話題、已入庫新聞均為即時 API 資料
+
+## Sprint 29 — 修復議題新聞收集卡在 0/50
+- [x] 診斷：確認根本原因——getProgress 用「文章數 >= 50」判斷完成，但文章是 AI 分析後儲存的少量參考 URL，永遠不會達到 50 篇
+- [x] 修復：getProgress 改用「轉折點數 > 0」作為完成判斷，正確反映 AI 分析完成狀態
+- [x] 測試：張亮麻辣燙議題現在回傳 status: ready，進度條正確消失
+- [x] 11 項測試全部通過
