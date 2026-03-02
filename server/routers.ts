@@ -82,6 +82,22 @@ export const appRouter = router({
         return { topic, turningPoints: turningPointsWithNews };
       }),
 
+    stats: publicProcedure
+      .query(async () => {
+        const db = await getDb();
+        if (!db) return { articleCount: 0, topicCount: 0 };
+        const [articleRow] = await db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(newsArticles);
+        const [topicRow] = await db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(topics);
+        return {
+          articleCount: Number(articleRow?.count ?? 0),
+          topicCount: Number(topicRow?.count ?? 0),
+        };
+      }),
+
     createOrFind: publicProcedure
       .input(z.object({ query: z.string().min(1).max(256) }))
       .mutation(async ({ input }) => {

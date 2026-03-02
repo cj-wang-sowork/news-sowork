@@ -10,7 +10,7 @@ import { Search, TrendingUp, TrendingDown, Minus, ArrowRight, Flame, Newspaper, 
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import { trpc } from '@/lib/trpc';
-import { hotTopics, suggestedTopics } from '@/lib/mockData';
+import { suggestedTopics } from '@/lib/mockData';
 
 type HeatLevel = 'extreme' | 'high' | 'medium' | 'low';
 type TrendDir = 'up' | 'down' | 'stable';
@@ -162,6 +162,9 @@ export default function Home() {
   // Fetch real hot topics from API
   const { data: apiTopics, isLoading: topicsLoading } = trpc.topics.hot.useQuery({ limit: 12 });
 
+  // Fetch real stats (public API)
+  const { data: siteStats } = trpc.topics.stats.useQuery();
+
   // Create or find topic mutation for search
   const createOrFind = trpc.topics.createOrFind.useMutation({
     onSuccess: (data) => {
@@ -176,32 +179,19 @@ export default function Home() {
     }
   };
 
-  // Use real API data if available, fallback to mock
-  const displayTopics: TopicCardData[] = (apiTopics && apiTopics.length > 0)
-    ? apiTopics.map(t => ({
-        id: t.id,
-        slug: t.slug,
-        query: t.query,
-        category: t.category,
-        heatLevel: t.heatLevel,
-        trendDirection: t.trendDirection,
-        trendPercent: t.trendPercent,
-        totalArticles: t.totalArticles,
-        totalMedia: t.totalMedia,
-        lastUpdated: t.lastUpdated,
-      }))
-    : hotTopics.map(t => ({
-        id: t.id,
-        slug: 'iran-war',
-        query: t.title,
-        category: t.category,
-        heatLevel: t.heatLevel,
-        trendDirection: t.trend === 'up' ? 'up' as TrendDir : t.trend === 'down' ? 'down' as TrendDir : 'stable' as TrendDir,
-        trendPercent: t.trendPercent,
-        totalArticles: t.articleCount,
-        totalMedia: t.mediaCount,
-        lastUpdated: t.lastUpdate,
-      }));
+  // Use real API data only
+  const displayTopics: TopicCardData[] = (apiTopics ?? []).map(t => ({
+    id: t.id,
+    slug: t.slug,
+    query: t.query,
+    category: t.category,
+    heatLevel: t.heatLevel,
+    trendDirection: t.trendDirection,
+    trendPercent: t.trendPercent,
+    totalArticles: t.totalArticles,
+    totalMedia: t.totalMedia,
+    lastUpdated: t.lastUpdated,
+  }));
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
@@ -309,9 +299,9 @@ export default function Home() {
         <div className="container py-4">
           <div className="flex items-center gap-8 overflow-x-auto">
             {[
-              { label: '今日追蹤話題', value: '1,847', unit: '個' },
-              { label: '覆蓋媒體來源', value: '2,300+', unit: '家' },
-              { label: '支援語言', value: '42', unit: '種' },
+              { label: '追蹤話題', value: siteStats ? siteStats.topicCount.toLocaleString() : '—', unit: '個' },
+              { label: '已入庫新聞', value: siteStats ? siteStats.articleCount.toLocaleString() : '—', unit: '篇' },
+              { label: '支援語言', value: '10+', unit: '種' },
               { label: '即時更新', value: '每 15 分鐘', unit: '' },
             ].map(stat => (
               <div key={stat.label} className="flex-shrink-0">
@@ -352,6 +342,14 @@ export default function Home() {
                 <div className="h-3 bg-gray-100 rounded w-2/3" />
               </div>
             ))}
+          </div>
+        ) : displayTopics.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-16 h-16 rounded-full bg-[#FF5A1F]/10 flex items-center justify-center mb-4">
+              <Search className="w-7 h-7 text-[#FF5A1F]" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground mb-2" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>尚無熱門話題</h3>
+            <p className="text-sm text-muted-foreground max-w-sm">先在上方搜尋框輸入一個主題，AI 就會自動建立時間軸並加入排行！</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

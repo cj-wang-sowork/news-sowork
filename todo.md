@@ -50,8 +50,16 @@
 - [x] 確認 Perplexity API Key 有效，但沙筆環境 TLS 封鎖無法連線 api.perplexity.ai
 - [x] 死心：改用 Gemini 2.5 Flash + Google News RSS（方案 B）
 
-## Sprint 6B — Gemini + Google News RSS 重構 (進行中)
-- [ ] 重構 aiAnalysis.ts：改用 Google News RSS 搜尋 + Gemini 分析轉折點
-- [ ] 移除 Perplexity 依賴，改用 invokeLLM (Gemini 2.5 Flash)
-- [ ] 端對端測試：輸入「伊朗」生成真實時間軸
-- [ ] 更新 vitest 測試
+## Sprint 6B — Gemini + Google News RSS 重構 (已完成)
+- [x] 重構 aiAnalysis.ts：改用 Google News RSS 搜尋 + Gemini 分析轉折點
+- [x] 移除 Perplexity 依賴，改用 invokeLLM (Gemini 2.5 Flash)
+- [x] 端對端測試：輸入「伊朗」成功生成 5 個真實轉折點時間軸（約 20 秒）
+- [x] 11 個 vitest 測試全部通過
+
+## Sprint 7 — 首頁熱門話題真實資料 (已完成)
+- [x] 後端：topics.hot API 從資料庫讀取真實話題與熱度數字
+- [x] 後端：topics.hot 計算篇數、媒體數、最後更新時間
+- [x] 前端：Home.tsx 熱門話題卡片串接真實 API，移除 mockData
+- [x] 前端：空資料時顯示「尚無熱門話題，先搜尋一個主題吧！」
+- [x] 後端：新增 topics.stats 公開 API，供首頁 Stats Bar 顯示真實話題數與新聞數
+- [x] 前端：Stats Bar 改用 topics.stats 真實數字（話題數、新聞篇數）
