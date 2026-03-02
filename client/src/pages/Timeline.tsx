@@ -211,9 +211,13 @@ function TurningPointCard({
 function AIResponsePanel({
   point,
   onClose,
+  initialRole,
+  initialType,
 }: {
   point: RealTurningPoint | null;
   onClose: () => void;
+  initialRole?: string;
+  initialType?: 'press' | 'social' | 'memo';
 }) {
   const RECENT_ROLES_KEY = 'newsflow_recent_roles';
   const MAX_RECENT = 5;
@@ -245,11 +249,12 @@ function AIResponsePanel({
     });
   };
 
-  const [role, setRole] = useState('');
-  const [responseType, setResponseType] = useState<'press' | 'social' | 'memo'>('press');
+  const [role, setRole] = useState(initialRole ?? '');
+  const [responseType, setResponseType] = useState<'press' | 'social' | 'memo'>(initialType ?? 'press');
   const [generatedContent, setGeneratedContent] = useState('');
   const [refineInput, setRefineInput] = useState('');
   const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   // 對話修改歷程：儲存每次修改的版本
   type HistoryItem = { instruction: string; content: string };
   const [refineHistory, setRefineHistory] = useState<HistoryItem[]>([]);
@@ -324,10 +329,20 @@ function AIResponsePanel({
     URL.revokeObjectURL(url);
   };
 
-  if (!point) return null;
+  const handleShare = () => {
+    if (!point) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('ai', '1');
+    url.searchParams.set('role', role.trim());
+    url.searchParams.set('type', responseType);
+    navigator.clipboard.writeText(url.toString());
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
 
+  if (!point) return null;
   const isGenerating = generateStance.isPending;
-  const isRefining = refineContent.isPending;
+  const isRefining = refineContent.isPending;;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -510,6 +525,15 @@ function AIResponsePanel({
                   >
                     ↓ 下載
                   </button>
+                  <button
+                    onClick={handleShare}
+                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-all ${
+                      copiedLink ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                    title="複製分享連結"
+                  >
+                    {copiedLink ? '🔗 已複製連結' : '🔗 分享'}
+                  </button>
                 </div>
               </div>
               {/* 內容文本 */}
@@ -585,6 +609,7 @@ export default function Timeline() {
   const params = useParams<{ topicId: string }>();
   const slug = params.topicId ?? '';
   const [selectedPoint, setSelectedPoint] = useState<RealTurningPoint | null>(null);
+  const [aiAutoOpened, setAiAutoOpened] = useState(false);
   const { isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
   // Fetch real timeline data from API
@@ -624,7 +649,18 @@ export default function Timeline() {
       setViewRecorded(true);
       recordView.mutate({ slug });
     }
-  }, [data?.topic?.id]);;
+  }, [data?.topic?.id]);
+
+  // 讀取 URL 參數，自動開啟 AI 面板並預填身份/類型
+  useEffect(() => {
+    if (!data?.turningPoints || aiAutoOpened) return;
+    const searchParams = new URLSearchParams(window.location.search);
+    const aiParam = searchParams.get('ai');
+    if (aiParam === '1' && data.turningPoints.length > 0) {
+      setAiAutoOpened(true);
+      setSelectedPoint(data.turningPoints[0]);
+    }
+  }, [data?.turningPoints]);
 
   // Loading state
   if (isLoading) {
@@ -830,7 +866,12 @@ export default function Timeline() {
 
       {/* AI Response Panel */}
       {selectedPoint && (
-        <AIResponsePanel point={selectedPoint} onClose={() => setSelectedPoint(null)} />
+        <AIResponsePanel
+          point={selectedPoint}
+          onClose={() => setSelectedPoint(null)}
+          initialRole={new URLSearchParams(window.location.search).get('role') ?? undefined}
+          initialType={(new URLSearchParams(window.location.search).get('type') as 'press' | 'social' | 'memo') || undefined}
+        />
       )}
     </div>
   );
