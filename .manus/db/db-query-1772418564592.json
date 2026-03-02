@@ -1,0 +1,9 @@
+{
+  "query": "\nINSERT IGNORE INTO `__drizzle_migrations` (hash, created_at) VALUES \n  ('0004_supreme_gamora', UNIX_TIMESTAMP() * 1000),\n  ('0005_quick_randall_flagg', UNIX_TIMESTAMP() * 1000);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute \nINSERT IGNORE INTO `__drizzle_migrations` (hash, created_at) VALUES \n  ('0004_supreme_gamora', UNIX_TIMESTAMP() * 1000),\n  ('0005_quick_randall_flagg', UNIX_TIMESTAMP() * 1000);\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1532
+}

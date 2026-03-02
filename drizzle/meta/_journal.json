@@ -22,6 +22,27 @@
       "when": 1772415369363,
       "tag": "0002_clean_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1772418006371,
+      "tag": "0003_bent_charles_xavier",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1772418472756,
+      "tag": "0004_supreme_gamora",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1772418499799,
+      "tag": "0005_quick_randall_flagg",
+      "breakpoints": true
     }
   ]
 }

@@ -47,6 +47,8 @@ export const topics = mysqlTable("topics", {
   visibility: mysqlEnum("visibility", ["public", "private"]).default("public").notNull(),
   // 新增：累計瀏覽次數
   viewCount: int("viewCount").default(0).notNull(),
+  // 標籤（JSON 字串，如 ["AI","科技","台灣"]）
+  tags: text("tags"),
   lastUpdated: timestamp("lastUpdated").defaultNow().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
@@ -148,3 +150,59 @@ export const topicViews = mysqlTable("topic_views", {
 
 export type TopicView = typeof topicViews.$inferSelect;
 export type InsertTopicView = typeof topicViews.$inferInsert;
+
+// ─── User Topics ──────────────────────────────────────────────────────────────
+// 用戶私有議題追蹤：登入用戶可以追蹤任何公開議題，或建立只有自己看得到的私有議題
+export const userTopics = mysqlTable("user_topics", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  // 關聯到 topics 表（若追蹤現有議題）
+  topicId: int("topicId"),
+  // 自定義私有議題標題（若不關聯現有議題）
+  customTitle: varchar("customTitle", { length: 256 }),
+  // 自定義搜尋關鍵字
+  customQuery: varchar("customQuery", { length: 256 }),
+  // 備註
+  note: text("note"),
+  // 是否已釘選
+  isPinned: int("isPinned").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserTopic = typeof userTopics.$inferSelect;
+export type InsertUserTopic = typeof userTopics.$inferInsert;
+
+// ─── User Conversations ───────────────────────────────────────────────────────
+// AI 對話記錄：每個對話關聯到一個議題，私有化存儲，只有創建者能看到
+export const userConversations = mysqlTable("user_conversations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  // 關聯的議題
+  topicId: int("topicId").notNull(),
+  // 對話標題（自動生成或用戶自訂）
+  title: varchar("title", { length: 256 }).notNull(),
+  // 消耗的點數
+  pointsUsed: int("pointsUsed").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserConversation = typeof userConversations.$inferSelect;
+export type InsertUserConversation = typeof userConversations.$inferInsert;
+
+// ─── Conversation Messages ────────────────────────────────────────────────────
+// 對話訊息：每條訊息屬於一個對話
+export const conversationMessages = mysqlTable("conversation_messages", {
+  id: int("id").autoincrement().primaryKey(),
+  conversationId: int("conversationId").notNull(),
+  // 角色：user = 用戶訊息, assistant = AI 回覆
+  role: mysqlEnum("role", ["user", "assistant"]).notNull(),
+  content: text("content").notNull(),
+  // 此訊息消耗的點數（僅 assistant 訊息有值）
+  pointsCost: int("pointsCost").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ConversationMessage = typeof conversationMessages.$inferSelect;
+export type InsertConversationMessage = typeof conversationMessages.$inferInsert;

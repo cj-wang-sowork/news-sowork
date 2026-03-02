@@ -80,3 +80,33 @@
 - [x] 前端：「建立議題」按鈕與表單（登入後才能使用，支援 public/private）
 - [x] 前端：首頁點數說明區塊（如何賺點、如何用點）
 - [x] 前端：Timeline 頁面進入時自動記錄瀏覽（觸發創建者賺點）
+
+## Sprint 9 — 用戶認證機制完整實作 (進行中)
+- [ ] Schema：新增 user_topics 表（用戶私有議題追蹤）
+- [ ] Schema：新增 user_conversations 表（AI 對話記錄，私有化）
+- [ ] Schema：新增 conversation_messages 表（對話訊息）
+- [ ] 執行 db:push 同步資料庫
+- [ ] 後端：myTopics.list / add / remove API（登入用戶私有議題管理）
+- [ ] 後端：conversations.create / list / getMessages / addMessage API
+- [ ] 後端：AI 對話 API（串接 LLM，消耗點數）
+- [ ] 前端：登入 Modal（彈出式，點擊「登入」按鈕觸發，跳轉 Manus OAuth）
+- [ ] 前端：Navbar 更新（顯示用戶頭像/名稱，點擊可登出）
+- [ ] 前端：未登入用戶點擊受保護功能時，顯示登入引導 Modal
+- [ ] 前端：/my-topics 頁面（我的議題列表、新增/移除私有追蹤）
+- [ ] 前端：Timeline 頁面整合 AI 對話功能（登入後可用，未登入顯示引導）
+- [ ] 前端：AI 對話 UI（側邊面板，支援多輪對話，顯示點數消耗）
+- [ ] Navbar 加入「我的議題」導航連結（登入後顯示）
+
+## Sprint 10 — 新聞媒體核心邏輯改善 (進行中)
+- [ ] 後端：topics.list 改為依 lastUpdated 降序排列（最新更新的議題排最前）
+- [ ] 後端：topics.hot 同樣改為依 lastUpdated 排序
+- [ ] 後端：getTopicTurningPoints 改為依 eventDate 降序（最新轉折點在最前）
+- [ ] 後端：buildTopicTimeline 完成後更新 topics.lastUpdated 時間戳
+- [ ] 後端：智慧合併 — 新文章入庫前先語意比對現有議題，相關則新增轉折點而非建新議題
+- [ ] Schema：topics 加入 tags 欄位（JSON 陣列，存多個標籤）
+- [ ] 後端：buildTopicTimeline 自動從 AI 分析結果提取標籤
+- [ ] 後端：topics.list 支援 tags 篩選參數
+- [ ] 前端：首頁標籤篩選 UI（取代目前的 category 篩選，支援多標籤）
+- [ ] 前端：議題卡片顯示標籤 chips
+- [ ] 前端：議題卡片顯示「最後更新」相對時間（如「3 小時前」）
+- [ ] 前端：Timeline 頁面轉折點改為從新到舊排列
