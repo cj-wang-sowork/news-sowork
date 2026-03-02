@@ -11,6 +11,7 @@ import {
 } from "./db";
 import { fetchAndStoreArticles, seedRssSources } from "./newsIngestion";
 import { buildTopicTimeline, generateStanceResponse } from "./aiAnalysis";
+import { triggerManualUpdate } from "./scheduler";
 import { getDb } from "./db";
 import {
   topics,
@@ -267,6 +268,38 @@ export const appRouter = router({
           .limit(input?.limit ?? 20);
       }),
 
+    // 取得所有標籤（公開 API，供前端篩選用）
+    allTags: publicProcedure
+      .query(async () => {
+        const db = await getDb();
+        if (!db) return [];
+        const rows = await db
+          .select({ tags: topics.tags })
+          .from(topics)
+          .where(and(
+            eq(topics.visibility, "public"),
+            sql`${topics.isActive} = 1`,
+            sql`${topics.tags} IS NOT NULL AND ${topics.tags} != '[]'`,
+          ));
+
+        // 解析每個議題的 tags JSON，合併去重
+        const tagSet = new Set<string>();
+        for (const row of rows) {
+          if (!row.tags) continue;
+          try {
+            const parsed = typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags;
+            if (Array.isArray(parsed)) {
+              for (const t of parsed) {
+                if (typeof t === 'string' && t.trim()) tagSet.add(t.trim());
+              }
+            }
+          } catch {
+            // 忽略解析失敗
+          }
+        }
+        return Array.from(tagSet).sort();
+      }),
+
     // 公開搜尋（不需登入）
     createOrFind: publicProcedure
       .input(z.object({ query: z.string().min(1).max(256) }))
@@ -362,6 +395,13 @@ export const appRouter = router({
           articleCount: Number(articleRow?.count ?? 0),
           topicCount: Number(topicRow?.count ?? 0),
         };
+      }),
+
+    // 手動觸發每日更新（供管理員測試）
+    triggerDailyUpdate: protectedProcedure
+      .mutation(async () => {
+        const result = await triggerManualUpdate();
+        return { ...result, message: `手動更新完成：成功 ${result.success} 個，失敗 ${result.failed} 個` };
       }),
 
     // 批次建立平台預設議題（僅管理員可用）

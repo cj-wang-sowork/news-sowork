@@ -4,11 +4,11 @@
  * Layout: Asymmetric hero (left 50% text, right 50% world map bg) + card grid below
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import {
   Search, TrendingUp, TrendingDown, Minus, ArrowRight, Flame,
-  Newspaper, Radio, Loader2, Plus, Coins, Eye, Lock
+  Newspaper, Radio, Loader2, Plus, Coins, Eye, Lock, Tag
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
@@ -16,6 +16,23 @@ import { trpc } from '@/lib/trpc';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { getLoginUrl } from '@/const';
 import { suggestedTopics } from '@/lib/mockData';
+
+/** 計算相對時間字串 */
+function timeAgo(date: Date | string | null): string {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const diffMs = Date.now() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return '剛剛更新';
+  if (diffMins < 60) return `${diffMins} 分鐘前`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} 小時前`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) return `${diffDays} 天前`;
+  const diffMonths = Math.floor(diffDays / 30);
+  if (diffMonths < 12) return `${diffMonths} 個月前`;
+  return `${Math.floor(diffMonths / 12)} 年前`;
+}
 
 type HeatLevel = 'extreme' | 'high' | 'medium' | 'low';
 type TrendDir = 'up' | 'down' | 'stable';
@@ -25,6 +42,7 @@ interface TopicCardData {
   slug: string;
   query: string;
   category?: string | null;
+  tags?: string[] | null;
   heatLevel: HeatLevel;
   trendDirection: TrendDir;
   trendPercent: number;
@@ -148,15 +166,22 @@ function TopicCard({ topic, index }: { topic: TopicCardData; index: number }) {
         {topic.totalMedia > 20 && <span className="text-xs text-muted-foreground ml-1">+{topic.totalMedia - 20}</span>}
       </div>
 
+      {/* Tags */}
+      {topic.tags && topic.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          {topic.tags.slice(0, 3).map(tag => (
+            <span key={tag} className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+              <Tag className="w-2.5 h-2.5" />{tag}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendIcon trend={topic.trendDirection} percent={topic.trendPercent} />
           <span className="text-xs text-muted-foreground">
-            {topic.lastUpdated
-              ? (typeof topic.lastUpdated === 'string'
-                ? topic.lastUpdated
-                : new Date(topic.lastUpdated).toLocaleDateString('zh-TW'))
-              : ''}
+            {timeAgo(topic.lastUpdated)}
           </span>
         </div>
         <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-[#FF5A1F] group-hover:translate-x-1 transition-all" />
@@ -172,6 +197,7 @@ export default function Home() {
   const [charIndex, setCharIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('全部');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [, navigate] = useLocation();
   const { user } = useAuth();
@@ -207,6 +233,9 @@ export default function Home() {
   // Fetch real stats (public API)
   const { data: siteStats } = trpc.topics.stats.useQuery();
 
+  // Fetch all tags for filter
+  const { data: allTagsData } = trpc.topics.allTags.useQuery();
+
   // Create or find topic mutation for search
   const createOrFind = trpc.topics.createOrFind.useMutation({
     onSuccess: (data) => {
@@ -221,25 +250,42 @@ export default function Home() {
     }
   };
 
-  // Filter by category
-  const allTopics: TopicCardData[] = (apiTopics ?? []).map(t => ({
-    id: t.id,
-    slug: t.slug,
-    query: t.query,
-    category: t.category,
-    heatLevel: t.heatLevel as HeatLevel,
-    trendDirection: t.trendDirection as TrendDir,
-    trendPercent: t.trendPercent,
-    totalArticles: t.totalArticles,
-    totalMedia: t.totalMedia,
-    viewCount: t.viewCount,
-    lastUpdated: t.lastUpdated,
-    creatorId: t.creatorId,
-  }));
+  // Map API data to card format
+  const allTopics: TopicCardData[] = useMemo(() => (apiTopics ?? []).map(t => {
+    let parsedTags: string[] = [];
+    if (t.tags) {
+      try {
+        const raw = typeof t.tags === 'string' ? JSON.parse(t.tags) : t.tags;
+        if (Array.isArray(raw)) parsedTags = raw.filter((x): x is string => typeof x === 'string');
+      } catch { /* ignore */ }
+    }
+    return {
+      id: t.id,
+      slug: t.slug,
+      query: t.query,
+      category: t.category,
+      tags: parsedTags,
+      heatLevel: t.heatLevel as HeatLevel,
+      trendDirection: t.trendDirection as TrendDir,
+      trendPercent: t.trendPercent,
+      totalArticles: t.totalArticles,
+      totalMedia: t.totalMedia,
+      viewCount: t.viewCount,
+      lastUpdated: t.lastUpdated,
+      creatorId: t.creatorId,
+    };
+  }), [apiTopics]);
 
-  const filteredTopics = selectedCategory === '全部'
-    ? allTopics
-    : allTopics.filter(t => t.category === selectedCategory);
+  // Filter by category and tag
+  const filteredTopics = useMemo(() => {
+    let result = selectedCategory === '全部'
+      ? allTopics
+      : allTopics.filter(t => t.category === selectedCategory);
+    if (selectedTag) {
+      result = result.filter(t => t.tags?.includes(selectedTag));
+    }
+    return result;
+  }, [allTopics, selectedCategory, selectedTag]);
 
   const displayTopics = showAll ? filteredTopics : filteredTopics.slice(0, 24);
 
@@ -415,11 +461,11 @@ export default function Home() {
         </div>
 
         {/* Category Filter */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 scrollbar-hide">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-3 scrollbar-hide">
           {CATEGORIES.map(cat => (
             <button
               key={cat}
-              onClick={() => { setSelectedCategory(cat); setShowAll(false); }}
+              onClick={() => { setSelectedCategory(cat); setSelectedTag(null); setShowAll(false); }}
               className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
                 selectedCategory === cat
                   ? 'bg-[#FF5A1F] text-white border-[#FF5A1F]'
@@ -430,6 +476,38 @@ export default function Home() {
             </button>
           ))}
         </div>
+
+        {/* Tag Filter */}
+        {allTagsData && allTagsData.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 scrollbar-hide">
+            <span className="flex-shrink-0 flex items-center gap-1 text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+              <Tag className="w-3 h-3" />標籤
+            </span>
+            <button
+              onClick={() => { setSelectedTag(null); setShowAll(false); }}
+              className={`flex-shrink-0 text-[10px] px-2.5 py-1 rounded-full border font-medium transition-all ${
+                selectedTag === null
+                  ? 'bg-gray-800 text-white border-gray-800'
+                  : 'bg-white text-muted-foreground border-border hover:border-gray-400'
+              }`}
+            >
+              全部
+            </button>
+            {allTagsData.slice(0, 20).map(tag => (
+              <button
+                key={tag}
+                onClick={() => { setSelectedTag(tag === selectedTag ? null : tag); setShowAll(false); }}
+                className={`flex-shrink-0 text-[10px] px-2.5 py-1 rounded-full border font-medium transition-all ${
+                  selectedTag === tag
+                    ? 'bg-gray-800 text-white border-gray-800'
+                    : 'bg-white text-muted-foreground border-border hover:border-gray-400'
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        )}
 
         {topicsLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -447,7 +525,9 @@ export default function Home() {
               <Search className="w-7 h-7 text-[#FF5A1F]" />
             </div>
             <h3 className="text-lg font-bold text-foreground mb-2" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
-              {selectedCategory === '全部' ? '尚無熱門話題' : `尚無「${selectedCategory}」分類的話題`}
+              {selectedTag
+                ? `尚無「${selectedTag}」標籤的話題`
+                : selectedCategory === '全部' ? '尚無熱門話題' : `尚無「${selectedCategory}」分類的話題`}
             </h3>
             <p className="text-sm text-muted-foreground max-w-sm">
               先在上方搜尋框輸入一個主題，AI 就會自動建立時間軸並加入排行！

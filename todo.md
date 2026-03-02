@@ -97,16 +97,23 @@
 - [ ] 前端：AI 對話 UI（側邊面板，支援多輪對話，顯示點數消耗）
 - [ ] Navbar 加入「我的議題」導航連結（登入後顯示）
 
-## Sprint 10 — 新聞媒體核心邏輯改善 (進行中)
-- [ ] 後端：topics.list 改為依 lastUpdated 降序排列（最新更新的議題排最前）
-- [ ] 後端：topics.hot 同樣改為依 lastUpdated 排序
-- [ ] 後端：getTopicTurningPoints 改為依 eventDate 降序（最新轉折點在最前）
-- [ ] 後端：buildTopicTimeline 完成後更新 topics.lastUpdated 時間戳
-- [ ] 後端：智慧合併 — 新文章入庫前先語意比對現有議題，相關則新增轉折點而非建新議題
-- [ ] Schema：topics 加入 tags 欄位（JSON 陣列，存多個標籤）
-- [ ] 後端：buildTopicTimeline 自動從 AI 分析結果提取標籤
-- [ ] 後端：topics.list 支援 tags 篩選參數
-- [ ] 前端：首頁標籤篩選 UI（取代目前的 category 篩選，支援多標籤）
-- [ ] 前端：議題卡片顯示標籤 chips
-- [ ] 前端：議題卡片顯示「最後更新」相對時間（如「3 小時前」）
-- [ ] 前端：Timeline 頁面轉折點改為從新到舊排列
+## Sprint 10 — 新聞媒體核心邏輯改善 (已完成)
+- [x] 後端：topics.list 改為依 lastUpdated 降序排列（最新更新的議題排最前）
+- [x] 後端：topics.hot 同樣改為依 lastUpdated 排序
+- [x] 後端：getTopicTurningPoints 改為依 eventDate 降序（最新轉折點在最前）
+- [x] 後端：buildTopicTimeline 完成後更新 topics.lastUpdated 時間戳
+- [x] 後端：智慧合併 — storeTimeline 改為增量新增（不清除舊轉折點）
+- [x] Schema：topics 加入 tags 欄位（text JSON，手動執行 SQL 新增）
+- [x] 後端：buildTopicTimeline 自動從 AI 分析結果提取標籤
+- [x] 後端：topics.list 支援 tags 篩選參數
+- [x] 前端：議題卡片顯示標籤 chips（最多 3 個）
+- [x] 前端：議題卡片顯示「最後更新」相對時間（如「3 小時前」）
+- [x] 前端：Timeline 頁面轉折點改為從新到舊排列
+
+## Sprint 11 — 標籤篩選、相對時間、每日排程 (已完成)
+- [x] 前端：議題卡片 lastUpdated 改為相對時間（X 小時前、X 天前）
+- [x] 前端：首頁加入標籤篩選 UI（從 API 動態取得所有標籤）
+- [x] 前端：標籤篩選與分類篩選可同時使用
+- [x] 後端：新增 topics.allTags API（回傳所有議題的標籤清單）
+- [x] 後端：每日自動更新排程（每天凌晨 3 點觸發所有議題重新抓取）
+- [x] 後端：admin.triggerDailyUpdate API（手動觸發更新供管理員使用）
