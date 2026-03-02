@@ -105,11 +105,11 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const user = await getUserByEmail(input.email);
         if (!user || !user.passwordHash) {
-          throw new Error("郵箱或密碼錯誤");
+          throw new Error("郵筱或密碼錯誤");
         }
         const isValid = await bcrypt.compare(input.password, user.passwordHash);
         if (!isValid) {
-          throw new Error("郵箱或密碼錯誤");
+          throw new Error("郵筱或密碼錯誤");
         }
         // 登入成功，發行 session cookie
         const token = await sdk.createSessionToken(user.openId, { name: user.name ?? "" });
@@ -121,6 +121,57 @@ export const appRouter = router({
           await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, user.id));
         }
         return { success: true, user: { id: user.id, name: user.name, email: user.email } };
+      }),
+
+    // Google OAuth 登入（前端傳入 Firebase ID Token，後端驗證後建立 session）
+    loginWithGoogle: publicProcedure
+      .input(z.object({
+        idToken: z.string().min(1),
+        name: z.string().optional(),
+        email: z.string().email().optional(),
+        photoURL: z.string().optional(),
+        uid: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("資料庫連線失敗");
+        // 用 Firebase UID 作為 openId
+        const openId = `google_${input.uid}`;
+        // 查詢或建立用戶
+        let [existingUser] = await db
+          .select()
+          .from(users)
+          .where(eq(users.openId, openId))
+          .limit(1);
+        if (!existingUser) {
+          // 新用戶：建立記錄
+          await db.insert(users).values({
+            openId,
+            email: input.email ?? null,
+            name: input.name ?? '用戶',
+            authMethod: 'google',
+            loginMethod: 'google',
+            avatar: input.photoURL ?? null,
+            lastSignedIn: new Date(),
+          });
+          const [newUser] = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+          if (!newUser) throw new Error("建立用戶失敗");
+          // 發放歡迎點
+          await addPoints(db, newUser.id, 100, 'welcome', undefined, 'Google 登入歡迎點');
+          existingUser = newUser;
+        } else {
+          // 更新最後登入時間和头像
+          await db.update(users).set({
+            lastSignedIn: new Date(),
+            avatar: input.photoURL ?? existingUser.avatar,
+            name: input.name ?? existingUser.name,
+          }).where(eq(users.id, existingUser.id));
+        }
+        // 發行 session cookie
+        const sessionToken = await sdk.createSessionToken(openId, { name: existingUser.name ?? '' });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
+        return { success: true, user: { id: existingUser.id, name: existingUser.name, email: existingUser.email } };
       }),
   }),
 
@@ -505,6 +556,48 @@ export const appRouter = router({
         const TARGET = 50;
         const status = articleCount >= TARGET ? 'ready' : 'collecting';
         return { articleCount, turningPointCount, target: TARGET, status, lastUpdated: topic.lastUpdated };
+      }),
+
+    // 訂閱議題通知
+    subscribeNotification: protectedProcedure
+      .input(z.object({ topicId: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error('DB error');
+        const { topicSubscriptions } = await import('../drizzle/schema');
+        await db
+          .insert(topicSubscriptions)
+          .values({ userId: ctx.user.id, topicId: input.topicId, notifyOnNewPoint: 1 })
+          .onDuplicateKeyUpdate({ set: { notifyOnNewPoint: 1 } });
+        return { subscribed: true };
+      }),
+
+    // 取消訂閱通知
+    unsubscribeNotification: protectedProcedure
+      .input(z.object({ topicId: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error('DB error');
+        const { topicSubscriptions } = await import('../drizzle/schema');
+        await db
+          .delete(topicSubscriptions)
+          .where(and(eq(topicSubscriptions.userId, ctx.user.id), eq(topicSubscriptions.topicId, input.topicId)));
+        return { subscribed: false };
+      }),
+
+    // 查詢訂閱狀態
+    isSubscribed: protectedProcedure
+      .input(z.object({ topicId: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return false;
+        const { topicSubscriptions } = await import('../drizzle/schema');
+        const [row] = await db
+          .select({ id: topicSubscriptions.id })
+          .from(topicSubscriptions)
+          .where(and(eq(topicSubscriptions.userId, ctx.user.id), eq(topicSubscriptions.topicId, input.topicId)))
+          .limit(1);
+        return !!row;
       }),
 
     // 公開搜尋（不需登入）

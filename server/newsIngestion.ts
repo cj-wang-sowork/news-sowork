@@ -17,22 +17,200 @@ const parser = new RSSParser({
 
 // ─── Default RSS Sources ──────────────────────────────────────────────────────
 export const DEFAULT_RSS_SOURCES = [
-  // Taiwan
-  { name: "自由時報", url: "https://news.ltn.com.tw/rss/all.xml", language: "zh-TW", country: "TW", flag: "🇹🇼" },
-  { name: "聯合新聞網", url: "https://udn.com/rssfeed/news/2/BREAKINGNEWS?ch=news", language: "zh-TW", country: "TW", flag: "🇹🇼" },
-  { name: "公視新聞", url: "https://news.pts.org.tw/xml/newsfeed.xml", language: "zh-TW", country: "TW", flag: "🇹🇼" },
-  // 中央社：使用 feedburner 國際新聞頻道
-  { name: "中央社", url: "https://feeds.feedburner.com/rsscna/intworld", language: "zh-TW", country: "TW", flag: "🇹🇼" },
-  // International Chinese
-  { name: "BBC 中文", url: "https://feeds.bbci.co.uk/zhongwen/trad/rss.xml", language: "zh-TW", country: "GB", flag: "🇬🇧" },
-  // VOA 中文：使用正確的 RSS 端點
-  { name: "VOA 中文", url: "https://www.voachinese.com/api/zrqoeuuqt/rss", language: "zh-CN", country: "US", flag: "🇺🇸" },
-  // English — Reuters & AP 官方 RSS 已停用，改用 Google News RSS 代替
-  { name: "Reuters", url: "https://news.google.com/rss/search?q=reuters+news&hl=en-US&gl=US&ceid=US:en", language: "en", country: "GB", flag: "🇬🇧" },
-  { name: "AP News", url: "https://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en", language: "en", country: "US", flag: "🇺🇸" },
-  { name: "Al Jazeera", url: "https://www.aljazeera.com/xml/rss/all.xml", language: "en", country: "QA", flag: "🇶🇦" },
-  // Japanese
-  { name: "NHK 日本語", url: "https://www3.nhk.or.jp/rss/news/cat0.xml", language: "ja", country: "JP", flag: "🇯🇵" },
+  // ── Taiwan 🇹🇼 ──
+  { name: "自由時報", url: "https://news.ltn.com.tw/rss/all.xml", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "全國" },
+  { name: "聯合新聞網", url: "https://udn.com/rssfeed/news/2/BREAKINGNEWS?ch=news", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "全國" },
+  { name: "公視新聞", url: "https://news.pts.org.tw/xml/newsfeed.xml", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "全國" },
+  { name: "中央社政治", url: "https://feeds.feedburner.com/rsscna/politics", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "政治" },
+  { name: "中央社國際", url: "https://feeds.feedburner.com/rsscna/intworld", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "國際" },
+  { name: "中央社兩岸", url: "https://feeds.feedburner.com/rsscna/mainland", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "兩岸" },
+  { name: "中央社財經", url: "https://feeds.feedburner.com/rsscna/finance", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "財經" },
+  { name: "Focus Taiwan", url: "https://feeds.feedburner.com/rsscna/engnews", language: "en", country: "TW", flag: "🇹🇼", category: "國際" },
+  { name: "Taipei Times", url: "https://www.taipeitimes.com/xml/index.rss", language: "en", country: "TW", flag: "🇹🇼", category: "全國" },
+  { name: "ETtoday即時", url: "https://feeds.feedburner.com/ettoday/realtime", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "即時" },
+  { name: "ETtoday國際", url: "https://feeds.feedburner.com/ettoday/international", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "國際" },
+  { name: "ETtoday政治", url: "https://feeds.feedburner.com/ettoday/politics", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "政治" },
+  { name: "商業周刊", url: "https://www.businessweekly.com.tw/RSS/Channel/latest.xml", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "財經" },
+  { name: "新頭殼", url: "https://newtalk.tw/rss", language: "zh-TW", country: "TW", flag: "🇹🇼", category: "全國" },
+  { name: "BBC 中文繁體", url: "https://feeds.bbci.co.uk/zhongwen/trad/rss.xml", language: "zh-TW", country: "GB", flag: "🇬🇧", category: "國際" },
+
+  // ── China / HK 🇨🇳🇭🇰 ──
+  { name: "Xinhua English", url: "http://www.xinhuanet.com/english/rss/worldrss.xml", language: "en", country: "CN", flag: "🇨🇳", category: "國際" },
+  { name: "CGTN World", url: "https://www.cgtn.com/subscribe/rss/section/world.xml", language: "en", country: "CN", flag: "🇨🇳", category: "國際" },
+  { name: "ECNS", url: "https://www.ecns.cn/rss/rss.xml", language: "en", country: "CN", flag: "🇨🇳", category: "國際" },
+  { name: "China Digital Times", url: "https://chinadigitaltimes.net/feed", language: "en", country: "CN", flag: "🇨🇳", category: "全國" },
+  { name: "SCMP World", url: "https://www.scmp.com/rss/91/feed", language: "en", country: "HK", flag: "🇭🇰", category: "國際" },
+  { name: "SCMP HK", url: "https://www.scmp.com/rss/5/feed", language: "en", country: "HK", flag: "🇭🇰", category: "全國" },
+  { name: "VOA 中文", url: "https://www.voachinese.com/api/zrqoeuuqt/rss", language: "zh-CN", country: "US", flag: "🇺🇸", category: "國際" },
+
+  // ── USA 🇺🇸 ──
+  { name: "CNN Top", url: "http://rss.cnn.com/rss/cnn_topstories.rss", language: "en", country: "US", flag: "🇺🇸", category: "全國" },
+  { name: "CNN World", url: "http://rss.cnn.com/rss/cnn_world.rss", language: "en", country: "US", flag: "🇺🇸", category: "國際" },
+  { name: "NYT Home", url: "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", language: "en", country: "US", flag: "🇺🇸", category: "全國" },
+  { name: "NYT World", url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", language: "en", country: "US", flag: "🇺🇸", category: "國際" },
+  { name: "NPR News", url: "https://www.npr.org/rss/rss.php?id=1001", language: "en", country: "US", flag: "🇺🇸", category: "全國" },
+  { name: "NPR World", url: "https://www.npr.org/rss/rss.php?id=1004", language: "en", country: "US", flag: "🇺🇸", category: "國際" },
+  { name: "Fox News", url: "https://moxie.foxnews.com/google-publisher/latest.xml", language: "en", country: "US", flag: "🇺🇸", category: "全國" },
+  { name: "Washington Post", url: "https://feeds.washingtonpost.com/rss/world", language: "en", country: "US", flag: "🇺🇸", category: "國際" },
+  { name: "ABC News", url: "https://feeds.abcnews.com/abcnews/topstories", language: "en", country: "US", flag: "🇺🇸", category: "全國" },
+  { name: "CBS News", url: "https://www.cbsnews.com/latest/rss/main", language: "en", country: "US", flag: "🇺🇸", category: "全國" },
+  { name: "NBC World", url: "https://feeds.nbcnews.com/feeds/worldnews", language: "en", country: "US", flag: "🇺🇸", category: "國際" },
+  { name: "PBS NewsHour", url: "https://feeds.feedburner.com/NewshourWorld", language: "en", country: "US", flag: "🇺🇸", category: "國際" },
+  { name: "Axios", url: "https://api.axios.com/feed/", language: "en", country: "US", flag: "🇺🇸", category: "全國" },
+  { name: "The Hill", url: "https://thehill.com/feed/", language: "en", country: "US", flag: "🇺🇸", category: "政治" },
+  { name: "Politico", url: "https://www.politico.com/rss/politicopicks.xml", language: "en", country: "US", flag: "🇺🇸", category: "政治" },
+  { name: "AP News", url: "https://news.google.com/rss/search?q=ap+news&hl=en-US&gl=US&ceid=US:en", language: "en", country: "US", flag: "🇺🇸", category: "全國" },
+
+  // ── UK / International 🇬🇧 ──
+  { name: "BBC World", url: "https://feeds.bbci.co.uk/news/world/rss.xml", language: "en", country: "GB", flag: "🇬🇧", category: "國際" },
+  { name: "BBC Asia", url: "https://feeds.bbci.co.uk/news/world/asia/rss.xml", language: "en", country: "GB", flag: "🇬🇧", category: "亞洲" },
+  { name: "BBC Africa", url: "https://feeds.bbci.co.uk/news/world/africa/rss.xml", language: "en", country: "GB", flag: "🇬🇧", category: "非洲" },
+  { name: "BBC Europe", url: "https://feeds.bbci.co.uk/news/world/europe/rss.xml", language: "en", country: "GB", flag: "🇬🇧", category: "歐洲" },
+  { name: "BBC Middle East", url: "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml", language: "en", country: "GB", flag: "🇬🇧", category: "中東" },
+  { name: "BBC Latin America", url: "https://feeds.bbci.co.uk/news/world/latin_america/rss.xml", language: "en", country: "GB", flag: "🇬🇧", category: "拉丁美洲" },
+  { name: "BBC Business", url: "https://feeds.bbci.co.uk/news/business/rss.xml", language: "en", country: "GB", flag: "🇬🇧", category: "財經" },
+  { name: "BBC Technology", url: "https://feeds.bbci.co.uk/news/technology/rss.xml", language: "en", country: "GB", flag: "🇬🇧", category: "科技" },
+  { name: "Reuters World", url: "https://feeds.reuters.com/Reuters/worldNews", language: "en", country: "GB", flag: "🇬🇧", category: "國際" },
+  { name: "Reuters Business", url: "https://feeds.reuters.com/reuters/businessNews", language: "en", country: "GB", flag: "🇬🇧", category: "財經" },
+  { name: "Reuters Tech", url: "https://feeds.reuters.com/reuters/technologyNews", language: "en", country: "GB", flag: "🇬🇧", category: "科技" },
+  { name: "The Guardian", url: "https://www.theguardian.com/world/rss", language: "en", country: "GB", flag: "🇬🇧", category: "國際" },
+
+  // ── Europe 🇪🇺 ──
+  { name: "Euronews", url: "https://feeds.feedburner.com/euronews/en/home/", language: "en", country: "EU", flag: "🇪🇺", category: "歐洲" },
+  { name: "France24 World", url: "https://www.france24.com/en/rss", language: "en", country: "FR", flag: "🇫🇷", category: "國際" },
+  { name: "France24 Europe", url: "https://www.france24.com/en/europe/rss", language: "en", country: "FR", flag: "🇫🇷", category: "歐洲" },
+  { name: "DW All", url: "https://rss.dw.com/rdf/rss-en-all", language: "en", country: "DE", flag: "🇩🇪", category: "國際" },
+  { name: "DW Europe", url: "https://rss.dw.com/rdf/rss-en-eu", language: "en", country: "DE", flag: "🇩🇪", category: "歐洲" },
+  { name: "DW Top Stories", url: "https://rss.dw.com/rdf/rss-en-top", language: "en", country: "DE", flag: "🇩🇪", category: "全國" },
+  { name: "Spiegel International", url: "https://www.spiegel.de/international/index.rss", language: "en", country: "DE", flag: "🇩🇪", category: "國際" },
+  { name: "Le Monde International", url: "https://www.lemonde.fr/en/international/rss_full.xml", language: "en", country: "FR", flag: "🇫🇷", category: "國際" },
+  { name: "Politico EU", url: "https://www.politico.eu/feed/", language: "en", country: "EU", flag: "🇪🇺", category: "歐洲" },
+
+  // ── Middle East 🇲🇾 ──
+  { name: "Al Jazeera", url: "https://www.aljazeera.com/xml/rss/all.xml", language: "en", country: "QA", flag: "🇶🇦", category: "中東" },
+  { name: "Tehran Times", url: "https://www.tehrantimes.com/rss", language: "en", country: "IR", flag: "🇮🇷", category: "中東" },
+  { name: "Haaretz", url: "https://www.haaretz.com/srv/haaretz-latest-rss", language: "en", country: "IL", flag: "🇮🇱", category: "中東" },
+  { name: "Times of Israel", url: "https://www.timesofisrael.com/feed/", language: "en", country: "IL", flag: "🇮🇱", category: "中東" },
+  { name: "Arab News", url: "https://www.arabnews.com/rss.xml", language: "en", country: "SA", flag: "🇸🇦", category: "中東" },
+  { name: "Daily Sabah", url: "https://www.dailysabah.com/rssFeed/homepage", language: "en", country: "TR", flag: "🇹🇷", category: "中東" },
+
+  // ── Japan 🇯🇵 ──
+  { name: "NHK 日本語", url: "https://www3.nhk.or.jp/rss/news/cat0.xml", language: "ja", country: "JP", flag: "🇯🇵", category: "全國" },
+  { name: "NHK World", url: "https://www3.nhk.or.jp/rss/news/cat6.xml", language: "ja", country: "JP", flag: "🇯🇵", category: "國際" },
+  { name: "NHK English", url: "https://www3.nhk.or.jp/nhkworld/en/news/rss/", language: "en", country: "JP", flag: "🇯🇵", category: "國際" },
+  { name: "Japan Times", url: "https://www.japantimes.co.jp/feed/", language: "en", country: "JP", flag: "🇯🇵", category: "全國" },
+  { name: "Nikkei Asia", url: "https://asia.nikkei.com/rss/feed/nar", language: "en", country: "JP", flag: "🇯🇵", category: "財經" },
+
+  // ── Korea 🇰🇷 ──
+  { name: "Korea Herald", url: "https://www.koreaherald.com/rss/", language: "en", country: "KR", flag: "🇰🇷", category: "全國" },
+  { name: "Yonhap News", url: "https://en.yna.co.kr/RSS/news.xml", language: "en", country: "KR", flag: "🇰🇷", category: "全國" },
+  { name: "Korea JoongAng Daily", url: "https://koreajoongangdaily.joins.com/rss/", language: "en", country: "KR", flag: "🇰🇷", category: "全國" },
+
+  // ── Southeast Asia 🇸🇬🇲🇾🇮🇩 ──
+  { name: "Straits Times", url: "https://www.straitstimes.com/news/world/rss.xml", language: "en", country: "SG", flag: "🇸🇬", category: "國際" },
+  { name: "Channel NewsAsia", url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml", language: "en", country: "SG", flag: "🇸🇬", category: "亞洲" },
+  { name: "Bangkok Post", url: "https://www.bangkokpost.com/rss/data/topstories.xml", language: "en", country: "TH", flag: "🇹🇭", category: "全國" },
+  { name: "Jakarta Post", url: "https://www.thejakartapost.com/feed", language: "en", country: "ID", flag: "🇮🇩", category: "全國" },
+  { name: "Philippine Daily Inquirer", url: "https://newsinfo.inquirer.net/feed", language: "en", country: "PH", flag: "🇵🇭", category: "全國" },
+  { name: "Vietnam News", url: "https://vietnamnews.vn/rss/", language: "en", country: "VN", flag: "🇻🇳", category: "全國" },
+  { name: "Malay Mail", url: "https://www.malaymail.com/feed", language: "en", country: "MY", flag: "🇲🇾", category: "全國" },
+
+  // ── South Asia 🇮🇳🇵🇰 ──
+  { name: "Times of India", url: "https://timesofindia.indiatimes.com/rssfeedstopstories.cms", language: "en", country: "IN", flag: "🇮🇳", category: "全國" },
+  { name: "Hindustan Times", url: "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml", language: "en", country: "IN", flag: "🇮🇳", category: "全國" },
+  { name: "The Hindu", url: "https://www.thehindu.com/news/feeder/default.rss", language: "en", country: "IN", flag: "🇮🇳", category: "全國" },
+  { name: "Dawn Pakistan", url: "https://www.dawn.com/feeds/home", language: "en", country: "PK", flag: "🇵🇰", category: "全國" },
+
+  // ── Australia / NZ 🇦🇺🇳🇿 ──
+  { name: "ABC Australia", url: "https://www.abc.net.au/news/feed/51120/rss.xml", language: "en", country: "AU", flag: "🇦🇺", category: "全國" },
+  { name: "Sydney Morning Herald", url: "https://www.smh.com.au/rss/feed.xml", language: "en", country: "AU", flag: "🇦🇺", category: "全國" },
+  { name: "NZ Herald", url: "https://www.nzherald.co.nz/arc/outboundfeeds/rss/section/news/", language: "en", country: "NZ", flag: "🇳🇿", category: "全國" },
+
+  // ── Africa 🇿🇦🇳🇬 ──
+  { name: "AllAfrica", url: "https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf", language: "en", country: "ZA", flag: "🇿🇦", category: "非洲" },
+  { name: "Daily Nation Kenya", url: "https://nation.africa/kenya/rss.xml", language: "en", country: "KE", flag: "🇰🇪", category: "非洲" },
+  { name: "Mail & Guardian SA", url: "https://mg.co.za/feed/", language: "en", country: "ZA", flag: "🇿🇦", category: "非洲" },
+
+  // ── Latin America 🇧🇷🇲🇽 ──
+  { name: "Buenos Aires Herald", url: "https://buenosairesherald.com/feed", language: "en", country: "AR", flag: "🇦🇷", category: "拉丁美洲" },
+  { name: "Rio Times Brazil", url: "https://riotimesonline.com/feed/", language: "en", country: "BR", flag: "🇧🇷", category: "拉丁美洲" },
+  { name: "Mexico News Daily", url: "https://mexiconewsdaily.com/feed/", language: "en", country: "MX", flag: "🇲🇽", category: "拉丁美洲" },
+
+  // ── Russia / Eastern Europe 🇷🇺🇺🇦 ──
+  { name: "Moscow Times", url: "https://www.themoscowtimes.com/rss/news", language: "en", country: "RU", flag: "🇷🇺", category: "東歐" },
+  { name: "Kyiv Independent", url: "https://kyivindependent.com/feed/", language: "en", country: "UA", flag: "🇺🇦", category: "東歐" },
+  { name: "Euractiv", url: "https://www.euractiv.com/feed/", language: "en", country: "EU", flag: "🇪🇺", category: "歐洲" },
+
+  // ── Tech / Business Global 💻 ──
+  { name: "TechCrunch", url: "https://techcrunch.com/feed/", language: "en", country: "US", flag: "🇺🇸", category: "科技" },
+  { name: "Wired", url: "https://www.wired.com/feed/rss", language: "en", country: "US", flag: "🇺🇸", category: "科技" },
+  { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", language: "en", country: "US", flag: "🇺🇸", category: "科技" },
+  { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index", language: "en", country: "US", flag: "🇺🇸", category: "科技" },
+  { name: "MIT Tech Review", url: "https://www.technologyreview.com/feed/", language: "en", country: "US", flag: "🇺🇸", category: "科技" },
+  { name: "Financial Times", url: "https://www.ft.com/world?format=rss", language: "en", country: "GB", flag: "🇬🇧", category: "財經" },
+  { name: "Bloomberg", url: "https://feeds.bloomberg.com/markets/news.rss", language: "en", country: "US", flag: "🇺🇸", category: "財經" },
+  { name: "The Economist", url: "https://www.economist.com/latest/rss.xml", language: "en", country: "GB", flag: "🇬🇧", category: "財經" },
+  { name: "Forbes", url: "https://www.forbes.com/real-time/feed2/", language: "en", country: "US", flag: "🇺🇸", category: "財經" },
+  { name: "Business Insider", url: "https://feeds.businessinsider.com/custom/all", language: "en", country: "US", flag: "🇺🇸", category: "財經" },
+
+  // ── Taiwan Today (English) 🇹🇼 ──
+  { name: "Taiwan Today", url: "https://api.taiwantoday.tw/en/rss.php", language: "en", country: "TW", flag: "🇹🇼", category: "全國" },
+
+  // ── China.org.cn 🇨🇳 ──
+  { name: "China.org.cn", url: "http://www.china.org.cn/rss/1201719.xml", language: "en", country: "CN", flag: "🇨🇳", category: "全國" },
+
+  // ── Additional US Media 🇺🇸 ──
+  { name: "The Atlantic", url: "https://www.theatlantic.com/feed/all/", language: "en", country: "US", flag: "🇺🇸", category: "全國" },
+  { name: "Vox", url: "https://www.vox.com/rss/index.xml", language: "en", country: "US", flag: "🇺🇸", category: "全國" },
+  { name: "Slate", url: "https://feeds.feedburner.com/Slate", language: "en", country: "US", flag: "🇺🇸", category: "全國" },
+  { name: "Mother Jones", url: "https://www.motherjones.com/feed/", language: "en", country: "US", flag: "🇺🇸", category: "政治" },
+  { name: "The Nation", url: "https://www.thenation.com/feed/?post_type=article", language: "en", country: "US", flag: "🇺🇸", category: "政治" },
+  { name: "National Review", url: "https://www.nationalreview.com/feed/", language: "en", country: "US", flag: "🇺🇸", category: "政治" },
+  { name: "Foreign Policy", url: "https://foreignpolicy.com/feed/", language: "en", country: "US", flag: "🇺🇸", category: "國際" },
+  { name: "Foreign Affairs", url: "https://www.foreignaffairs.com/rss.xml", language: "en", country: "US", flag: "🇺🇸", category: "國際" },
+  { name: "Defense One", url: "https://www.defenseone.com/rss/all/", language: "en", country: "US", flag: "🇺🇸", category: "國防" },
+  { name: "Breaking Defense", url: "https://breakingdefense.com/feed/", language: "en", country: "US", flag: "🇺🇸", category: "國防" },
+
+  // ── Additional UK Media 🇬🇧 ──
+  { name: "The Independent", url: "https://www.independent.co.uk/news/world/rss", language: "en", country: "GB", flag: "🇬🇧", category: "國際" },
+  { name: "The Telegraph World", url: "https://www.telegraph.co.uk/rss.xml", language: "en", country: "GB", flag: "🇬🇧", category: "國際" },
+  { name: "Sky News", url: "https://feeds.skynews.com/feeds/rss/world.xml", language: "en", country: "GB", flag: "🇬🇧", category: "國際" },
+  { name: "Channel 4 News", url: "https://www.channel4.com/news/feed", language: "en", country: "GB", flag: "🇬🇧", category: "全國" },
+
+  // ── Additional Europe 🇪🇺 ──
+  { name: "ANSA English", url: "https://www.ansa.it/english/news/general_news/rss.xml", language: "en", country: "IT", flag: "🇮🇹", category: "國際" },
+  { name: "EFE English", url: "https://www.efe.com/efe/english/1/rss", language: "en", country: "ES", flag: "🇪🇸", category: "國際" },
+  { name: "Swiss Info", url: "https://www.swissinfo.ch/eng/rss/top_news", language: "en", country: "CH", flag: "🇨🇭", category: "國際" },
+  { name: "Radio Free Europe", url: "https://www.rferl.org/api/epiqq", language: "en", country: "EU", flag: "🇪🇺", category: "東歐" },
+
+  // ── Additional Middle East 🇸🇦 ──
+  { name: "Middle East Eye", url: "https://www.middleeasteye.net/rss", language: "en", country: "GB", flag: "🇬🇧", category: "中東" },
+  { name: "Al-Monitor", url: "https://www.al-monitor.com/rss", language: "en", country: "US", flag: "🇺🇸", category: "中東" },
+  { name: "Gulf News", url: "https://gulfnews.com/rss", language: "en", country: "AE", flag: "🇦🇪", category: "中東" },
+  { name: "Jordan Times", url: "https://www.jordantimes.com/rss.xml", language: "en", country: "JO", flag: "🇯🇴", category: "中東" },
+
+  // ── Additional Asia 🇨🇳🇮🇳 ──
+  { name: "Global Times", url: "https://www.globaltimes.cn/rss/outbrain.xml", language: "en", country: "CN", flag: "🇨🇳", category: "國際" },
+  { name: "South China Morning Post Business", url: "https://www.scmp.com/rss/92/feed", language: "en", country: "HK", flag: "🇭🇰", category: "財經" },
+  { name: "Nikkei Japan", url: "https://www.nikkei.com/rss/news.rdf", language: "ja", country: "JP", flag: "🇯🇵", category: "財經" },
+  { name: "Mainichi Japan", url: "https://mainichi.jp/rss/etc/mainichi-flash.rss", language: "ja", country: "JP", flag: "🇯🇵", category: "全國" },
+  { name: "Asahi Shimbun", url: "https://www.asahi.com/rss/asahi/newsheadlines.rdf", language: "ja", country: "JP", flag: "🇯🇵", category: "全國" },
+  { name: "Yomiuri Shimbun", url: "https://www.yomiuri.co.jp/feed/", language: "ja", country: "JP", flag: "🇯🇵", category: "全國" },
+  { name: "Chosun Ilbo", url: "https://english.chosun.com/rss/", language: "en", country: "KR", flag: "🇰🇷", category: "全國" },
+  { name: "Hankyoreh English", url: "https://english.hani.co.kr/rss/", language: "en", country: "KR", flag: "🇰🇷", category: "全國" },
+
+  // ── Science / Environment 🌍 ──
+  { name: "Nature News", url: "https://www.nature.com/nature.rss", language: "en", country: "GB", flag: "🇬🇧", category: "科學" },
+  { name: "Science Daily", url: "https://www.sciencedaily.com/rss/top/science.xml", language: "en", country: "US", flag: "🇺🇸", category: "科學" },
+  { name: "New Scientist", url: "https://www.newscientist.com/feed/home/", language: "en", country: "GB", flag: "🇬🇧", category: "科學" },
+  { name: "Climate Home News", url: "https://www.climatechangenews.com/feed/", language: "en", country: "GB", flag: "🇬🇧", category: "環境" },
+  { name: "Carbon Brief", url: "https://www.carbonbrief.org/feed", language: "en", country: "GB", flag: "🇬🇧", category: "環境" },
+
+  // ── Additional Global Finance 💹 ──
+  { name: "MarketWatch", url: "https://feeds.marketwatch.com/marketwatch/topstories/", language: "en", country: "US", flag: "🇺🇸", category: "財經" },
+  { name: "CNBC World", url: "https://www.cnbc.com/id/100727362/device/rss/rss.html", language: "en", country: "US", flag: "🇺🇸", category: "財經" },
+  { name: "Wall Street Journal", url: "https://feeds.a.dj.com/rss/RSSWorldNews.xml", language: "en", country: "US", flag: "🇺🇸", category: "財經" },
+  { name: "Quartz", url: "https://qz.com/feed", language: "en", country: "US", flag: "🇺🇸", category: "財經" },
 ];
 
 // ─── Seed RSS Sources ─────────────────────────────────────────────────────────

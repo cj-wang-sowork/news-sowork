@@ -208,6 +208,64 @@ function TurningPointCard({
   );
 }
 
+// ─── DiffView: word-level diff between two text versions ────────────────────
+function computeWordDiff(oldText: string, newText: string): Array<{ text: string; type: 'same' | 'added' | 'removed' }> {
+  const oldWords = oldText.split(/(\s+)/);
+  const newWords = newText.split(/(\s+)/);
+  // Simple LCS-based diff
+  const m = oldWords.length;
+  const n = newWords.length;
+  // Build LCS table
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (oldWords[i - 1] === newWords[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+  // Backtrack
+  const result: Array<{ text: string; type: 'same' | 'added' | 'removed' }> = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && oldWords[i - 1] === newWords[j - 1]) {
+      result.unshift({ text: oldWords[i - 1], type: 'same' });
+      i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      result.unshift({ text: newWords[j - 1], type: 'added' });
+      j--;
+    } else {
+      result.unshift({ text: oldWords[i - 1], type: 'removed' });
+      i--;
+    }
+  }
+  return result;
+}
+
+function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
+  const tokens = computeWordDiff(oldText, newText);
+  return (
+    <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ fontFamily: 'Noto Sans TC, sans-serif' }}>
+      <div className="flex items-center gap-3 mb-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-green-200 border border-green-400" />新增</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-red-100 border border-red-300" />刪除</span>
+      </div>
+      <p className="leading-relaxed">
+        {tokens.map((token, idx) => {
+          if (token.type === 'added') {
+            return <mark key={idx} className="bg-green-100 text-green-800 rounded px-0.5 no-underline">{token.text}</mark>;
+          } else if (token.type === 'removed') {
+            return <del key={idx} className="bg-red-50 text-red-500 rounded px-0.5">{token.text}</del>;
+          }
+          return <span key={idx}>{token.text}</span>;
+        })}
+      </p>
+    </div>
+  );
+}
+
 // ─── AIResponsePanel ──────────────────────────────────────────────────────────
 function AIResponsePanel({
   point,
@@ -264,6 +322,37 @@ function AIResponsePanel({
   const [refineHistory, setRefineHistory] = useState<string[]>([]);
   // 歷程摺疊狀態
   const [historyExpanded, setHistoryExpanded] = useState(false);
+  // Diff 視圖狀態
+  const [showDiff, setShowDiff] = useState(false);
+
+  // ── Touch drag to close (mobile bottom sheet) ──
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dragStartY = useRef<number | null>(null);
+  const dragCurrentY = useRef<number>(0);
+  const [dragOffset, setDragOffset] = useState(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    dragStartY.current = e.touches[0].clientY;
+    dragCurrentY.current = 0;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (dragStartY.current === null) return;
+    const delta = e.touches[0].clientY - dragStartY.current;
+    if (delta > 0) {
+      dragCurrentY.current = delta;
+      setDragOffset(delta);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragCurrentY.current > 100) {
+      onClose();
+    }
+    dragStartY.current = null;
+    dragCurrentY.current = 0;
+    setDragOffset(0);
+  };
 
   // AI 推薦身份（根據議題標題自動載入）
   const { data: suggestedRoles, isLoading: rolesLoading } = trpc.ai.suggestRoles.useQuery(
@@ -362,16 +451,28 @@ function AIResponsePanel({
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       {/* Desktop: right side panel | Mobile: bottom sheet */}
-      <div className="
-        absolute bg-white shadow-2xl flex flex-col overflow-hidden
-        /* Mobile: bottom sheet */
-        bottom-0 left-0 right-0 h-[88vh] rounded-t-2xl
-        /* Desktop: right panel */
-        sm:bottom-0 sm:top-0 sm:left-auto sm:right-0 sm:h-full sm:w-full sm:max-w-lg sm:rounded-none
-      ">
+      <div
+        ref={panelRef}
+        className="
+          absolute bg-white shadow-2xl flex flex-col overflow-hidden
+          /* Mobile: bottom sheet */
+          bottom-0 left-0 right-0 h-[88vh] rounded-t-2xl
+          /* Desktop: right panel */
+          sm:bottom-0 sm:top-0 sm:left-auto sm:right-0 sm:h-full sm:w-full sm:max-w-lg sm:rounded-none
+        "
+        style={{
+          transform: `translateY(${dragOffset}px)`,
+          transition: dragOffset === 0 ? 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)' : 'none',
+        }}
+      >
 
         {/* Mobile drag handle */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden flex-shrink-0">
+        <div
+          className="flex justify-center pt-3 pb-1 sm:hidden flex-shrink-0 cursor-grab active:cursor-grabbing"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <div className="w-10 h-1 rounded-full bg-gray-300" />
         </div>
 
@@ -536,18 +637,32 @@ function AIResponsePanel({
                 {versions.length > 1 && (
                   <div className="flex items-center justify-between px-4 py-1.5 bg-orange-50 border-b border-orange-100">
                     <button
-                      onClick={() => setCurrentVersionIdx(i => Math.max(0, i - 1))}
+                      onClick={() => { setCurrentVersionIdx(i => Math.max(0, i - 1)); setShowDiff(false); }}
                       disabled={currentVersionIdx === 0}
                       className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-orange-200 disabled:opacity-30 text-[#FF5A1F] transition-all"
                     >
                       ←
                     </button>
-                    <div className="text-center">
-                      <p className="text-xs font-semibold text-[#FF5A1F]">{versions[currentVersionIdx]?.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{currentVersionIdx + 1} / {versions.length} 個版本</p>
+                    <div className="flex items-center gap-2">
+                      <div className="text-center">
+                        <p className="text-xs font-semibold text-[#FF5A1F]">{versions[currentVersionIdx]?.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{currentVersionIdx + 1} / {versions.length} 個版本</p>
+                      </div>
+                      {currentVersionIdx > 0 && (
+                        <button
+                          onClick={() => setShowDiff(v => !v)}
+                          className={`text-[10px] px-2 py-0.5 rounded-full border transition-all ${
+                            showDiff
+                              ? 'bg-blue-100 border-blue-300 text-blue-700'
+                              : 'bg-white border-border text-muted-foreground hover:border-blue-300 hover:text-blue-600'
+                          }`}
+                        >
+                          {showDiff ? '關閉差異' : '顯示差異'}
+                        </button>
+                      )}
                     </div>
                     <button
-                      onClick={() => setCurrentVersionIdx(i => Math.min(versions.length - 1, i + 1))}
+                      onClick={() => { setCurrentVersionIdx(i => Math.min(versions.length - 1, i + 1)); setShowDiff(false); }}
                       disabled={currentVersionIdx === versions.length - 1}
                       className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-orange-200 disabled:opacity-30 text-[#FF5A1F] transition-all"
                     >
@@ -588,9 +703,16 @@ function AIResponsePanel({
                   </div>
                 </div>
               </div>
-              {/* 內容文本（Markdown 渲染） */}
+              {/* 內容文本（Markdown 渲染 or Diff 視圖） */}
               <div className="p-4 prose prose-sm max-w-none" style={{ fontFamily: 'Noto Sans TC, sans-serif' }}>
-                <Streamdown>{generatedContent}</Streamdown>
+                {showDiff && currentVersionIdx > 0 ? (
+                  <DiffView
+                    oldText={versions[currentVersionIdx - 1]?.content ?? ''}
+                    newText={generatedContent}
+                  />
+                ) : (
+                  <Streamdown>{generatedContent}</Streamdown>
+                )}
               </div>
             </div>
           )}
@@ -703,6 +825,29 @@ export default function Timeline() {
       unsaveTopic.mutate({ topicId });
     } else {
       saveTopic.mutate({ topicId });
+    }
+  };
+  // Check if subscribed to notifications
+  const { data: isSubscribed } = trpc.topics.isSubscribed.useQuery(
+    { topicId: topicId! },
+    { enabled: isAuthenticated && !!topicId }
+  );
+  const subscribeNotification = trpc.topics.subscribeNotification.useMutation({
+    onSuccess: () => utils.topics.isSubscribed.invalidate({ topicId: topicId! }),
+  });
+  const unsubscribeNotification = trpc.topics.unsubscribeNotification.useMutation({
+    onSuccess: () => utils.topics.isSubscribed.invalidate({ topicId: topicId! }),
+  });
+  const handleToggleNotification = () => {
+    if (!isAuthenticated) {
+      window.location.href = getLoginUrl();
+      return;
+    }
+    if (!topicId) return;
+    if (isSubscribed) {
+      unsubscribeNotification.mutate({ topicId });
+    } else {
+      subscribeNotification.mutate({ topicId });
     }
   };
   // Record view (for creator's point reward)
@@ -873,22 +1018,38 @@ export default function Timeline() {
                   <div className="text-xs text-muted-foreground">個轉折點</div>
                 </div>
               </div>
-              {/* Save / Unsave button */}
-              <Button
-                onClick={handleToggleSave}
-                disabled={saveTopic.isPending || unsaveTopic.isPending}
-                variant={isSaved ? 'outline' : 'default'}
-                size="sm"
-                className={isSaved
-                  ? 'flex items-center gap-1.5 border-[#FF5A1F] text-[#FF5A1F] hover:bg-orange-50'
-                  : 'flex items-center gap-1.5 bg-[#FF5A1F] hover:bg-[#e04d18] text-white'
-                }
-              >
-                {isSaved
-                  ? <><BookmarkCheck className="w-4 h-4" />已追蹤</>
-                  : <><Bookmark className="w-4 h-4" />追蹤此議題</>
-                }
-              </Button>
+              {/* Save / Unsave + Notification buttons */}
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={handleToggleSave}
+                  disabled={saveTopic.isPending || unsaveTopic.isPending}
+                  variant={isSaved ? 'outline' : 'default'}
+                  size="sm"
+                  className={isSaved
+                    ? 'flex items-center gap-1.5 border-[#FF5A1F] text-[#FF5A1F] hover:bg-orange-50'
+                    : 'flex items-center gap-1.5 bg-[#FF5A1F] hover:bg-[#e04d18] text-white'
+                  }
+                >
+                  {isSaved
+                    ? <><BookmarkCheck className="w-4 h-4" />已追蹤</>
+                    : <><Bookmark className="w-4 h-4" />追蹤此議題</>
+                  }
+                </Button>
+                {isAuthenticated && (
+                  <button
+                    onClick={handleToggleNotification}
+                    disabled={subscribeNotification.isPending || unsubscribeNotification.isPending}
+                    title={isSubscribed ? '關閉轉折點通知' : '開啟新轉折點通知'}
+                    className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
+                      isSubscribed
+                        ? 'bg-orange-50 border-[#FF5A1F] text-[#FF5A1F]'
+                        : 'bg-white border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F]'
+                    }`}
+                  >
+                    {isSubscribed ? '🔔 通知已開' : '🔕 開啟通知'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

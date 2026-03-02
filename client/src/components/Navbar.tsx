@@ -6,15 +6,24 @@
 
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Globe, Menu, X, Zap, Coins, LogOut, Plus, User, Bookmark } from 'lucide-react';
+import { Menu, X, Zap, Coins, LogOut, Plus, User, Bookmark, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { trpc } from '@/lib/trpc';
+import { useI18n, type Locale } from '@/contexts/I18nContext';
+
+const LOCALE_LABELS: Record<Locale, string> = {
+  'zh-TW': '繁中',
+  'zh-CN': '简中',
+  'en': 'EN',
+};
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const { locale, setLocale, t } = useI18n();
 
   // 取得點數餘額（僅登入後）
   const { data: pointsData } = trpc.points.balance.useQuery(undefined, {
@@ -45,7 +54,7 @@ export default function Navbar() {
           <nav className="hidden md:flex items-center gap-1">
             <Link href="/">
               <Button variant="ghost" size="sm" className={`text-sm font-medium ${location === '/' ? 'text-[#FF5A1F]' : 'text-muted-foreground hover:text-foreground'}`}>
-                探索話題
+                {t('nav.explore')}
               </Button>
             </Link>
             {user && (
@@ -60,11 +69,6 @@ export default function Navbar() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="hidden md:flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
-              <Globe className="w-4 h-4" />
-              <span className="text-sm">繁中</span>
-            </Button>
-
             {user ? (
               <>
                 {/* 點數顯示 */}
@@ -90,7 +94,7 @@ export default function Navbar() {
                     <div className="w-6 h-6 rounded-full bg-[#FF5A1F]/10 flex items-center justify-center">
                       <User className="w-3.5 h-3.5 text-[#FF5A1F]" />
                     </div>
-                    <span className="text-xs text-muted-foreground max-w-[80px] truncate">{user.name ?? '用戶'}</span>
+                    <span className="text-xs text-muted-foreground max-w-[80px] truncate">{user.name ?? (locale === 'en' ? 'User' : '用戶')}</span>
                   </div>
                   <Button
                     variant="ghost"
@@ -109,10 +113,36 @@ export default function Navbar() {
                   size="sm"
                   className="hidden md:flex bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-semibold shadow-sm"
                 >
-                  登入 / 免費使用
+                  {t('nav.login')} / {locale === 'en' ? 'Free' : '免費使用'}
                 </Button>
               </Link>
             )}
+
+            {/* Language switcher — always visible */}
+            <div className="relative hidden md:block">
+              <button
+                onClick={() => setLangOpen(v => !v)}
+                className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F] transition-all"
+              >
+                <Languages className="w-3.5 h-3.5" />
+                {LOCALE_LABELS[locale]}
+              </button>
+              {langOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-border rounded-xl shadow-lg py-1 z-50 min-w-[80px]">
+                  {(['zh-TW', 'zh-CN', 'en'] as Locale[]).map(l => (
+                    <button
+                      key={l}
+                      onClick={() => { setLocale(l); setLangOpen(false); }}
+                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-orange-50 transition-colors ${
+                        locale === l ? 'text-[#FF5A1F] font-semibold' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {LOCALE_LABELS[l]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <Button
               variant="ghost"

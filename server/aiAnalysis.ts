@@ -4,6 +4,7 @@
  */
 
 import { invokeLLM } from "./_core/llm";
+import { ENV } from "./_core/env";
 import { getDb } from "./db";
 import { topics, turningPoints, newsArticles, type InsertTurningPoint } from "../drizzle/schema";
 import { eq, desc, like, sql } from "drizzle-orm";
@@ -19,40 +20,125 @@ interface NewsItem {
 }
 
 /**
+ * 偵測查詢語言：繁中、簡中、日文、韓文、英文
+ */
+export function detectQueryLanguage(query: string): 'zh-TW' | 'zh-CN' | 'ja' | 'ko' | 'en' {
+  // 日文（包含平假名或片假名）
+  if (/[\u3040-\u309f\u30a0-\u30ff]/.test(query)) return 'ja';
+  // 韓文
+  if (/[\uac00-\ud7af\u1100-\u11ff]/.test(query)) return 'ko';
+  // 中文字符
+  if (/[\u4e00-\u9fff\u3400-\u4dbf]/.test(query)) {
+    // 簡中特徵字（簡體字常見字形）
+    const simplifiedChars = ['国', '党', '军', '经济', '发展', '政府', '习近平', '中共', '人民', '联合'];
+    if (simplifiedChars.some(c => query.includes(c))) return 'zh-CN';
+    return 'zh-TW';
+  }
+  return 'en';
+}
+
+/**
+ * 使用 QWEN 呼叫 LLM（用於簡中查詢，效果更好）
+ */
+async function invokeLLMWithQwen(params: Parameters<typeof invokeLLM>[0]): Promise<import('./_core/llm').InvokeResult> {
+  if (!ENV.qwenApiKey) {
+    console.warn('[QWEN] No API key, falling back to default LLM');
+    return invokeLLM(params);
+  }
+  try {
+    const resp = await fetch('https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ENV.qwenApiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'qwen-plus',
+        messages: params.messages,
+        ...(params.response_format ? { response_format: params.response_format } : {}),
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!resp.ok) {
+      console.warn('[QWEN] API error, falling back:', resp.status);
+      return invokeLLM(params);
+    }
+    return resp.json() as ReturnType<typeof invokeLLM>;
+  } catch (err) {
+    console.warn('[QWEN] Request failed, falling back:', (err as Error).message);
+    return invokeLLM(params);
+  }
+}
+
+/**
+ * 根據語言選擇最適合的 LLM
+ */
+function selectLLM(language: string): (params: Parameters<typeof invokeLLM>[0]) => Promise<import('./_core/llm').InvokeResult> {
+  if (language === 'zh-CN') return invokeLLMWithQwen;
+  return invokeLLM;
+}
+
+/**
+ * 判斷議題是否為台灣在地議題（非全球性）
+ * 台灣在地：飲食、內政、財經、社會、娛樂、地方新聞等
+ * 全球：國際外交、戰爭、全球科技巨頭、國際經濟等
+ */
+function isLocalTaiwanTopic(query: string): boolean {
+  const globalKeywords = [
+    '伊朗', '以色列', '美國', '中國', '俄羅斯', '烏克蘭', '北韓', '日本', '韓國',
+    '法國', '英國', '德國', '歐盟', '聯合國', '戰爭', '軍事', '外交',
+    'Iran', 'Israel', 'Ukraine', 'Russia', 'NATO', 'China', 'USA', 'Trump',
+    '全球', '國際', '外交部', '白宮', '美聯儲', 'Fed', 'TSMC',
+    '海峽', '對岸', '兩岸', '南海',
+  ];
+  return !globalKeywords.some(kw => query.includes(kw));
+}
+
+/**
  * Search Google News RSS for a given query.
  * Google News RSS: https://news.google.com/rss/search?q=QUERY&hl=zh-TW&gl=TW&ceid=TW:zh-Hant
+ * 台灣在地議題只搜台灣 feed，全球議題搜台灣+香港+英文
  */
 export async function searchGoogleNews(query: string, targetCount = 50): Promise<{
   items: NewsItem[];
   rawText: string;
 }> {
-  // 擴大時間範圍至 30 天，提升台灣在地新聞覆蓋率
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const afterDate = thirtyDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD
 
-  // 生成多個搜尋變體：繁中主詞、加台灣地域限定、加新聞關鍵詞、英文
+  const isLocal = isLocalTaiwanTopic(query);
+  console.log(`[GoogleNews] Topic scope: ${isLocal ? '台灣在地' : '全球'} for query: "${query}"`);
+
+  // 生成搜尋變體
   const queryVariants = new Set<string>();
   queryVariants.add(query);
-  // 加入「台灣」地域限定詞（若查詢中未包含）
-  if (!query.includes('台灣') && !query.includes('Taiwan')) {
-    queryVariants.add(`${query} 台灣`);
-  }
-  // 加入「新聞」關鍵詞強化搜尋
   queryVariants.add(`${query} 新聞`);
-  // 英文版本（取前 20 字）
-  queryVariants.add(query.length <= 20 ? query : query.slice(0, 20));
+  if (isLocal) {
+    // 台灣在地：加強台灣地域限定
+    if (!query.includes('台灣') && !query.includes('Taiwan')) {
+      queryVariants.add(`${query} 台灣`);
+    }
+  } else {
+    // 全球：加入英文變體
+    queryVariants.add(query.length <= 20 ? query : query.slice(0, 20));
+  }
 
   const allItems: NewsItem[] = [];
 
   for (const q of Array.from(queryVariants)) {
-    if (allItems.length >= targetCount * 2) break; // 已足夠，不繼續搜尋
+    if (allItems.length >= targetCount * 2) break;
     const encodedQuery = encodeURIComponent(`${q} after:${afterDate}`);
-    // 多語言 feed：繁中（台灣）、繁中（香港）、英文
-    const feeds = [
-      `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`,
-      `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-TW&gl=HK&ceid=HK:zh-Hant`,
-      `https://news.google.com/rss/search?q=${encodedQuery}&hl=en-US&gl=US&ceid=US:en`,
-    ];
+
+    // 台灣在地：只搜台灣 feed；全球：搜台灣+香港+英文
+    const feeds = isLocal
+      ? [
+          `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`,
+        ]
+      : [
+          `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`,
+          `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-TW&gl=HK&ceid=HK:zh-Hant`,
+          `https://news.google.com/rss/search?q=${encodedQuery}&hl=en-US&gl=US&ceid=US:en`,
+        ];
 
     for (const feedUrl of feeds) {
       try {
@@ -175,11 +261,13 @@ interface TimelineAnalysisResult {
 async function formatTimelineFromNews(
   query: string,
   newsText: string,
-  newsItems: NewsItem[]
+  newsItems: NewsItem[],
+  language = 'zh-TW'
 ): Promise<TimelineAnalysisResult> {
   const sourceUrls = newsItems.slice(0, 15).map((item) => item.url);
+  const llm = selectLLM(language);
 
-  const response = await invokeLLM({
+  const response = await llm({
     messages: [
       {
         role: "system",
@@ -461,7 +549,9 @@ export async function buildTopicTimeline(query: string): Promise<{
 
   if (!topic) return null;
 
-  // Step 3: Search Google News RSS
+  // Step 3: Detect query language and search Google News RSS
+  const queryLanguage = detectQueryLanguage(query);
+  console.log(`[Timeline] Query language: ${queryLanguage} for: "${query}"`);
   console.log(`[Timeline] Searching Google News for: "${query}"`);
   const { items: newsItems, rawText } = await searchGoogleNews(query);
 
@@ -472,8 +562,8 @@ export async function buildTopicTimeline(query: string): Promise<{
 
   console.log(`[Timeline] Found ${newsItems.length} articles, formatting timeline...`);
 
-  // Step 4: Format into timeline using Gemini
-  const analysisResult = await formatTimelineFromNews(query, rawText, newsItems);
+  // Step 4: Format into timeline using language-appropriate LLM
+  const analysisResult = await formatTimelineFromNews(query, rawText, newsItems, queryLanguage);
   const turningPointsData = analysisResult.turning_points;
   const topicTags = analysisResult.tags ?? [];
   const topicTitle = analysisResult.topic_title || query;

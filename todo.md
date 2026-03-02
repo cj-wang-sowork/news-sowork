@@ -175,3 +175,57 @@
 - [x] 對話修改歷程可展開/收合（預設收合，顯示「X 次修改歷程」按鈕）
 - [x] 生成結果版本切換（← → 箭頭在多版本間切換對比）
 - [x] 手機端 bottom sheet（小螢幕改為從底部滑出的抽屉設計）
+
+## Sprint 21 — 手機 Bottom Sheet 滑動關閉
+- [x] 手機端 AI 面板加入 touch drag 手勢偵測（touchstart/touchmove/touchend）
+- [x] 向下滑動超過閨値（100px）時自動關閉面板
+- [x] 拖動時面板跟隨手指位移（translateY 動畫）
+- [x] 放開後若未達閨値則彈回原位（spring 動畫）
+
+## Sprint 22 — 議題訂閱推播通知
+- [x] 後端：topics.subscribeNotification API（儲存用戶對議題的通知訂閱）
+- [x] 後端：Schema 新增 topic_subscriptions 表
+- [x] 後端：每日更新排程觸發時，檢查新轉折點並發送 notifyOwner 通知
+- [x] 前端：Timeline 頁面「追蹤」按鈕旁加入「🔔 通知」 toggle
+- [x] 前端：通知設定狀態顯示（已開啟/已關閉）
+
+## Sprint 23 — 版本比對 Diff 視圖
+- [ ] 前端：版本切換列加入「顯示差異」toggle 按鈕
+- [ ] 前端：Diff 模式下，用綠色背景標示新增文字，紅色標示刪除文字
+- [ ] 前端：實作 word-level diff 算法（LCS 或 diff-match-patch）
+- [ ] 前端：Diff 視圖與正常視圖可切換
+
+## Sprint 22 — 議題訂閱推播通知
+- [ ] Schema：新增 topic_subscriptions 表（userId, topicId, notifyOnNewPoint）
+- [ ] 後端：topics.subscribeNotification / unsubscribeNotification API
+- [ ] 後端：每日更新排程觸發時，偵測新轉折點並發送 notifyOwner 通知
+- [ ] 前端：Timeline 頁面「追蹤」按鈕旁加入「🔔 通知」toggle
+- [ ] 前端：通知狀態顯示（已開啟/已關閉）
+
+## Sprint 23 — 版本比對 Diff 視圖
+- [x] 前端：版本切換列加入「顯示差異」 toggle 按鈕（只在 v2+ 出現）
+- [x] 前端：實作 word-level diff（比對前一版本與當前版本）
+- [x] 前端：新增文字用綠色背景標示，刪除文字用紅色刪除線標示
+- [x] 前端：Diff 模式與正常模式可切換
+
+## Sprint 24 — UI i18n 跟隨系統語言
+- [x] 建立 i18n 翻譯字典（繁中/簡中/英文）
+- [x] 偵測 navigator.language 自動設定初始語言
+- [x] Navbar 加入語言切換選單（繁中/簡中/English）
+- [x] 主要 UI 文字（Navbar、首頁、Timeline）套用翻譯
+
+## Sprint 25 — Google OAuth 登入
+- [x] 前端：安裝 Firebase SDK
+- [x] 前端：建立 firebase.ts 設定檔（需 Firebase 環境變數）
+- [x] 前端：LoginPage 移除 Manus OAuth，加入 Google 登入按鈕（Firebase signInWithPopup）
+- [x] 前端：RegisterPage 移除 Manus OAuth，加入 Google 快速加入按鈕
+- [x] 後端：auth.loginWithGoogle procedure（接收 Firebase ID token，建立 session）
+- [x] Schema：users 加入 avatar 欄位，authMethod 加入 google 選項
+- [x] 執行 db:push 同步資料庫
+- [x] 設定 Firebase 環境變數（VITE_FIREBASE_* 已儲存，等待用戶填入 Firebase 專案設定）
+
+## Sprint 26 — RSS 來源擴充 + QWEN 語言路由
+- [x] 新增 147 個全球 RSS 來源（台灣、中國、美國、英國、歐洲、中東、日韓、東南亞、南亞、澳洲、非洲、拉丁美洲、科學、財經）
+- [x] 偵測查詢語言（繁中/簡中/日文/韓文/英文）
+- [x] 簡中查詢自動路由到 QWEN（通義千問）進行分析
+- [x] QWEN API Key 已儲存並驗證通過

@@ -23,7 +23,9 @@ export const users = mysqlTable("users", {
   points: int("points").default(100).notNull(),
   // Password authentication fields
   passwordHash: varchar("passwordHash", { length: 255 }),
-  authMethod: mysqlEnum("authMethod", ["password", "oauth"]).default("password"),
+  authMethod: mysqlEnum("authMethod", ["password", "oauth", "google"]).default("password"),
+  // Google / social login
+  avatar: text("avatar"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -210,3 +212,17 @@ export const conversationMessages = mysqlTable("conversation_messages", {
 
 export type ConversationMessage = typeof conversationMessages.$inferSelect;
 export type InsertConversationMessage = typeof conversationMessages.$inferInsert;
+
+// ─── Topic Subscriptions ──────────────────────────────────────────────────────
+// 議題訂閱：用戶訂閱議題後，當有新轉折點時收到通知
+export const topicSubscriptions = mysqlTable("topic_subscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  topicId: int("topicId").notNull(),
+  // 是否開啟新轉折點通知
+  notifyOnNewPoint: tinyint("notifyOnNewPoint").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type TopicSubscription = typeof topicSubscriptions.$inferSelect;
+export type InsertTopicSubscription = typeof topicSubscriptions.$inferInsert;
