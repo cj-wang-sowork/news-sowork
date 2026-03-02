@@ -165,3 +165,8 @@
 - [x] 前端：進度條每 10 秒自動 polling 更新
 - [x] 後端：topics.create 加入 topicId 回傳値
 - [x] 前端：CreateTopic 建立成功後自動呼叫 saveTopic，將議題加入「我的議題」
+
+## Sprint 19 — AI 回覆面板修正 (已完成)
+- [x] 修正：AI 生成日期應為今日（在 prompt 中注入 UTC+8 台灣時區的西元日期和民國日期）
+- [x] 修正：生成內容使用 Streamdown 渲染 Markdown（粗體、列表等正確顯示）
+- [x] 修正：對話修改區改為 textarea（rows=3，高度加大），支援 ⌘+Enter 發送

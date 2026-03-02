@@ -12,6 +12,7 @@ import {
   ExternalLink, Zap, ArrowLeft, BrainCircuit, Globe, Loader2, AlertCircle,
   Bookmark, BookmarkCheck, RefreshCw
 } from 'lucide-react';
+import { Streamdown } from 'streamdown';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import { trpc } from '@/lib/trpc';
@@ -536,12 +537,9 @@ function AIResponsePanel({
                   </button>
                 </div>
               </div>
-              {/* 內容文本 */}
-              <div className="p-4">
-                <pre className="text-sm text-foreground leading-relaxed whitespace-pre-wrap"
-                  style={{ fontFamily: 'Noto Sans TC, sans-serif' }}>
-                  {generatedContent}
-                </pre>
+              {/* 內容文本（Markdown 渲染） */}
+              <div className="p-4 prose prose-sm max-w-none" style={{ fontFamily: 'Noto Sans TC, sans-serif' }}>
+                <Streamdown>{generatedContent}</Streamdown>
               </div>
             </div>
           )}
@@ -567,26 +565,29 @@ function AIResponsePanel({
                 </div>
               )}
 
-              {/* 修改輸入框 */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
+              {/* 修改輸入框（textarea 加大） */}
+              <div className="flex flex-col gap-2">
+                <textarea
                   value={refineInput}
                   onChange={e => setRefineInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleRefine()}
-                  placeholder="輸入修改要求，例如：請更簡短、請加入數據支持..."
+                  onKeyDown={e => e.key === 'Enter' && e.metaKey && handleRefine()}
+                  placeholder="輸入修改要求，例如：請更簡短、請加入數據支持、請調整語氣更正式..."
                   disabled={isRefining}
-                  className="flex-1 px-3 py-2.5 rounded-xl border-2 border-border focus:border-[#FF5A1F] outline-none text-sm bg-white transition-colors disabled:opacity-50"
+                  rows={3}
+                  className="w-full px-3 py-2.5 rounded-xl border-2 border-border focus:border-[#FF5A1F] outline-none text-sm bg-white transition-colors disabled:opacity-50 resize-none"
                   style={{ fontFamily: 'Noto Sans TC, sans-serif' }}
                 />
-                <Button
-                  onClick={handleRefine}
-                  disabled={!refineInput.trim() || isRefining}
-                  size="sm"
-                  className="bg-[#FF5A1F] hover:bg-[#e04d18] text-white rounded-xl px-3 disabled:opacity-50 flex-shrink-0"
-                >
-                  {isRefining ? <Loader2 className="w-4 h-4 animate-spin" /> : '發送'}
-                </Button>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">按 ⌘+Enter 發送，每次修改消耗 5 點</p>
+                  <Button
+                    onClick={handleRefine}
+                    disabled={!refineInput.trim() || isRefining}
+                    size="sm"
+                    className="bg-[#FF5A1F] hover:bg-[#e04d18] text-white rounded-xl px-4 disabled:opacity-50"
+                  >
+                    {isRefining ? <Loader2 className="w-4 h-4 animate-spin" /> : '發送修改'}
+                  </Button>
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">• 每次修改消耗 5 點，可多輪對話直到滿意</p>
             </div>

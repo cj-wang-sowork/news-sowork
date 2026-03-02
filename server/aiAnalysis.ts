@@ -549,15 +549,24 @@ export async function generateStanceResponse(params: {
       ? "Respond in Traditional Chinese (繁體中文)."
       : `Respond in ${language}.`;
 
+  // 注入今日日期（台灣時區 UTC+8）
+  const now = new Date();
+  const twDate = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const todayStr = twDate.toISOString().split('T')[0]; // YYYY-MM-DD
+  const todayZh = `${twDate.getUTCFullYear()}年${twDate.getUTCMonth() + 1}月${twDate.getUTCDate()}日`;
+  const todayROC = `中華民國${twDate.getUTCFullYear() - 1911}年${twDate.getUTCMonth() + 1}月${twDate.getUTCDate()}日`;
+
   const response = await invokeLLM({
     messages: [
       {
         role: "system",
-        content: `You are an expert communications strategist. ${langInstruction} Generate ${typeInstructions[responseType]} from the perspective of the specified role, based on the given news event context. Be realistic, professional, and appropriate to the role's interests and concerns.`,
+        content: `You are an expert communications strategist. ${langInstruction} Generate ${typeInstructions[responseType]} from the perspective of the specified role, based on the given news event context. Be realistic, professional, and appropriate to the role's interests and concerns.
+
+IMPORTANT: Today's date is ${todayStr} (${todayZh} / ${todayROC}). Always use TODAY's date when generating dates in the document. NEVER use past dates or make up dates.`,
       },
       {
         role: "user",
-        content: `News Event: "${topicTitle}"\n\nContext: ${topicSummary}\n\nRole/Perspective: ${role}\n\nGenerate a ${typeInstructions[responseType]} from this perspective. Keep it concise but impactful.`,
+        content: `News Event: "${topicTitle}"\n\nContext: ${topicSummary}\n\nRole/Perspective: ${role}\n\nToday's date: ${todayZh} (${todayROC})\n\nGenerate a ${typeInstructions[responseType]} from this perspective. Keep it concise but impactful. Use today's date for any date references in the document.`,
       },
     ],
   });
