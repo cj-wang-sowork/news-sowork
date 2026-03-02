@@ -252,13 +252,18 @@ function AIResponsePanel({
 
   const [role, setRole] = useState(initialRole ?? '');
   const [responseType, setResponseType] = useState<'press' | 'social' | 'memo'>(initialType ?? 'press');
-  const [generatedContent, setGeneratedContent] = useState('');
+  // 版本歷史：每次生成/修改都存入 versions 陣列
+  type VersionItem = { content: string; label: string };
+  const [versions, setVersions] = useState<VersionItem[]>([]);
+  const [currentVersionIdx, setCurrentVersionIdx] = useState(0);
+  const generatedContent = versions[currentVersionIdx]?.content ?? '';
   const [refineInput, setRefineInput] = useState('');
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-  // 對話修改歷程：儲存每次修改的版本
-  type HistoryItem = { instruction: string; content: string };
-  const [refineHistory, setRefineHistory] = useState<HistoryItem[]>([]);
+  // 對話修改歷程：儲存每次修改的指令（不含內容，內容在 versions）
+  const [refineHistory, setRefineHistory] = useState<string[]>([]);
+  // 歷程摺疊狀態
+  const [historyExpanded, setHistoryExpanded] = useState(false);
 
   // AI 推薦身份（根據議題標題自動載入）
   const { data: suggestedRoles, isLoading: rolesLoading } = trpc.ai.suggestRoles.useQuery(
@@ -272,8 +277,11 @@ function AIResponsePanel({
   const generateStance = trpc.ai.generateStance.useMutation({
     onSuccess: (data) => {
       const content = typeof data.content === 'string' ? data.content : '';
-      setGeneratedContent(content);
+      const newVersions = [{ content, label: '原始版本' }];
+      setVersions(newVersions);
+      setCurrentVersionIdx(0);
       setRefineHistory([]);
+      setHistoryExpanded(false);
       // 生成成功後將身份儲存到最近使用
       saveRoleToRecent(role);
     },
@@ -282,15 +290,20 @@ function AIResponsePanel({
   const refineContent = trpc.ai.refineContent.useMutation({
     onSuccess: (data) => {
       const refined = typeof data.content === 'string' ? data.content : '';
-      setRefineHistory(prev => [...prev, { instruction: refineInput, content: refined }]);
-      setGeneratedContent(refined);
+      const instruction = refineInput.trim();
+      setVersions(prev => {
+        const newVersions = [...prev, { content: refined, label: `修改 ${prev.length}：${instruction.slice(0, 12)}${instruction.length > 12 ? '...' : ''}` }];
+        setCurrentVersionIdx(newVersions.length - 1);
+        return newVersions;
+      });
+      setRefineHistory(prev => [...prev, instruction]);
       setRefineInput('');
     },
   });
 
   const handleGenerate = () => {
     if (!role.trim() || !point) return;
-    setGeneratedContent('');
+    setVersions([]);
     setRefineHistory([]);
     generateStance.mutate({
       topicTitle: point.title,
@@ -346,9 +359,21 @@ function AIResponsePanel({
   const isRefining = refineContent.isPending;;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col h-full overflow-hidden">
+      {/* Desktop: right side panel | Mobile: bottom sheet */}
+      <div className="
+        absolute bg-white shadow-2xl flex flex-col overflow-hidden
+        /* Mobile: bottom sheet */
+        bottom-0 left-0 right-0 h-[88vh] rounded-t-2xl
+        /* Desktop: right panel */
+        sm:bottom-0 sm:top-0 sm:left-auto sm:right-0 sm:h-full sm:w-full sm:max-w-lg sm:rounded-none
+      ">
+
+        {/* Mobile drag handle */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
 
         {/* Panel Header */}
         <div
@@ -469,7 +494,7 @@ function AIResponsePanel({
               ].map(type => (
                 <button
                   key={type.key}
-                  onClick={() => { setResponseType(type.key as typeof responseType); setGeneratedContent(''); setRefineHistory([]); }}
+                  onClick={() => { setResponseType(type.key as typeof responseType); setVersions([]); setCurrentVersionIdx(0); setRefineHistory([]); setHistoryExpanded(false); }}
                   className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-sm font-medium ${
                     responseType === type.key
                       ? 'border-[#FF5A1F] bg-[#FFF0EB] text-[#FF5A1F]'
@@ -506,35 +531,61 @@ function AIResponsePanel({
           {generatedContent && (
             <div className="bg-[#FAFAFA] rounded-xl border border-border overflow-hidden">
               {/* 結果標題列 */}
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-white">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[#FF5A1F] uppercase tracking-wide">AI 生成結果</span>
-                  <span className="text-xs text-muted-foreground">· 以「{role}」身份</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={handleCopy}
-                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-all ${
-                      copied ? 'bg-green-100 text-green-700' : 'bg-[#FFF0EB] text-[#FF5A1F] hover:bg-[#FF5A1F] hover:text-white'
-                    }`}
-                  >
-                    {copied ? '✓ 已複製' : '📋 複製'}
-                  </button>
-                  <button
-                    onClick={handleDownload}
-                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-[#FFF0EB] text-[#FF5A1F] hover:bg-[#FF5A1F] hover:text-white transition-all"
-                  >
-                    ↓ 下載
-                  </button>
-                  <button
-                    onClick={handleShare}
-                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-all ${
-                      copiedLink ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                    title="複製分享連結"
-                  >
-                    {copiedLink ? '🔗 已複製連結' : '🔗 分享'}
-                  </button>
+              <div className="flex flex-col border-b border-border bg-white">
+                {/* 版本切換列（多版本時顯示） */}
+                {versions.length > 1 && (
+                  <div className="flex items-center justify-between px-4 py-1.5 bg-orange-50 border-b border-orange-100">
+                    <button
+                      onClick={() => setCurrentVersionIdx(i => Math.max(0, i - 1))}
+                      disabled={currentVersionIdx === 0}
+                      className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-orange-200 disabled:opacity-30 text-[#FF5A1F] transition-all"
+                    >
+                      ←
+                    </button>
+                    <div className="text-center">
+                      <p className="text-xs font-semibold text-[#FF5A1F]">{versions[currentVersionIdx]?.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{currentVersionIdx + 1} / {versions.length} 個版本</p>
+                    </div>
+                    <button
+                      onClick={() => setCurrentVersionIdx(i => Math.min(versions.length - 1, i + 1))}
+                      disabled={currentVersionIdx === versions.length - 1}
+                      className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-orange-200 disabled:opacity-30 text-[#FF5A1F] transition-all"
+                    >
+                      →
+                    </button>
+                  </div>
+                )}
+                {/* 操作列 */}
+                <div className="flex items-center justify-between px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-[#FF5A1F] uppercase tracking-wide">AI 生成結果</span>
+                    <span className="text-xs text-muted-foreground">· 以「{role}」身份</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={handleCopy}
+                      className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-all ${
+                        copied ? 'bg-green-100 text-green-700' : 'bg-[#FFF0EB] text-[#FF5A1F] hover:bg-[#FF5A1F] hover:text-white'
+                      }`}
+                    >
+                      {copied ? '✓ 已複製' : '📋 複製'}
+                    </button>
+                    <button
+                      onClick={handleDownload}
+                      className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-[#FFF0EB] text-[#FF5A1F] hover:bg-[#FF5A1F] hover:text-white transition-all"
+                    >
+                      ↓ 下載
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-all ${
+                        copiedLink ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                      title="複製分享連結"
+                    >
+                      {copiedLink ? '🔗 已複製連結' : '🔗 分享'}
+                    </button>
+                  </div>
                 </div>
               </div>
               {/* 內容文本（Markdown 渲染） */}
@@ -553,15 +604,27 @@ function AIResponsePanel({
                 <div className="h-px flex-1 bg-border" />
               </div>
 
-              {/* 修改歷程 */}
+              {/* 修改歷程（可折疊） */}
               {refineHistory.length > 0 && (
                 <div className="space-y-2">
-                  {refineHistory.map((item, i) => (
-                    <div key={i} className="bg-orange-50 rounded-lg px-3 py-2">
-                      <p className="text-xs text-[#FF5A1F] font-medium mb-0.5">修改指令 {i + 1}</p>
-                      <p className="text-xs text-muted-foreground">{item.instruction}</p>
+                  <button
+                    onClick={() => setHistoryExpanded(v => !v)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+                  >
+                    <span className="text-[10px]">{historyExpanded ? '▼' : '▶'}</span>
+                    <span>{refineHistory.length} 次修改歷程</span>
+                    <div className="h-px flex-1 bg-border ml-1" />
+                  </button>
+                  {historyExpanded && (
+                    <div className="space-y-1.5">
+                      {refineHistory.map((instruction, i) => (
+                        <div key={i} className="bg-orange-50 rounded-lg px-3 py-2">
+                          <p className="text-xs text-[#FF5A1F] font-medium mb-0.5">修改指令 {i + 1}</p>
+                          <p className="text-xs text-muted-foreground">{instruction}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
 
