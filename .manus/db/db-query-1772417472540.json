@@ -1,0 +1,46 @@
+{
+  "query": "SELECT COUNT(*) as total_topics FROM topics WHERE isActive = 1;\nSELECT category, COUNT(*) as count FROM topics WHERE isActive = 1 GROUP BY category ORDER BY count DESC LIMIT 15;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT COUNT(*) as total_topics FROM topics WHERE isActive = 1;\nSELECT category, COUNT(*) as count FROM topics WHERE isActive = 1 GROUP BY category ORDER BY count DESC LIMIT 15;",
+  "rows": [
+    {
+      "total_topics": "52"
+    },
+    {
+      "total_topics": "category\tcount"
+    },
+    {
+      "total_topics": "地緣政治\t8"
+    },
+    {
+      "total_topics": "科技\t8"
+    },
+    {
+      "total_topics": "財經\t7"
+    },
+    {
+      "total_topics": "政治\t6"
+    },
+    {
+      "total_topics": "社會\t6"
+    },
+    {
+      "total_topics": "氣候\t5"
+    },
+    {
+      "total_topics": "健康\t4"
+    },
+    {
+      "total_topics": "太空\t3"
+    },
+    {
+      "total_topics": "能源\t3"
+    },
+    {
+      "total_topics": "NULL\t2"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_topics\n52\ncategory\tcount\n地緣政治\t8\n科技\t8\n財經\t7\n政治\t6\n社會\t6\n氣候\t5\n健康\t4\n太空\t3\n能源\t3\nNULL\t2\n",
+  "stderr": "",
+  "execution_time_ms": 1813
+}

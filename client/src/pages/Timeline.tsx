@@ -5,7 +5,7 @@
  * Data: Fully connected to real tRPC API (no mockData)
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useParams } from 'wouter';
 import {
   Newspaper, Radio, ChevronDown, ChevronUp,
@@ -386,6 +386,16 @@ export default function Timeline() {
     { slug },
     { enabled: !!slug }
   );
+
+  // Record view (for creator's point reward)
+  const recordView = trpc.topics.recordView.useMutation();
+  const [viewRecorded, setViewRecorded] = useState(false);
+  useEffect(() => {
+    if (data?.topic && !viewRecorded) {
+      setViewRecorded(true);
+      recordView.mutate({ slug });
+    }
+  }, [data?.topic?.id]);
 
   // Loading state
   if (isLoading) {

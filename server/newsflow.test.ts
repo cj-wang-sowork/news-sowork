@@ -3,15 +3,42 @@ import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
 // Mock database helpers
-vi.mock("./db", () => ({
-  getDb: vi.fn().mockResolvedValue(null), // null = no DB, use fallback
-  getHotTopics: vi.fn().mockResolvedValue([]),
-  getTopicBySlug: vi.fn().mockResolvedValue(null),
-  getTopicTurningPoints: vi.fn().mockResolvedValue([]),
-  getTurningPointNews: vi.fn().mockResolvedValue([]),
-  upsertUser: vi.fn().mockResolvedValue(undefined),
-  getUserByOpenId: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock("./db", () => {
+  const mockDb = {
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockImplementation(() => ({
+        where: vi.fn().mockResolvedValue([{ points: 100 }]),
+        then: (resolve: (v: unknown[]) => void) => resolve([{ count: 0 }]),
+        // Make it thenable (Promise-like) so destructuring works
+        [Symbol.iterator]: function* () { yield { count: 0 }; },
+      })),
+    }),
+    update: vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([]),
+      }),
+    }),
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockResolvedValue([]),
+    }),
+    query: {},
+  };
+  return {
+    getDb: vi.fn().mockResolvedValue(mockDb),
+    getHotTopics: vi.fn().mockResolvedValue([]),
+    getTopicBySlug: vi.fn().mockResolvedValue(null),
+    getTopicTurningPoints: vi.fn().mockResolvedValue([]),
+    getTurningPointNews: vi.fn().mockResolvedValue([]),
+    upsertUser: vi.fn().mockResolvedValue(undefined),
+    getUserByOpenId: vi.fn().mockResolvedValue(undefined),
+    getUserPoints: vi.fn().mockResolvedValue(100),
+    deductPoints: vi.fn().mockResolvedValue(undefined),
+    addPoints: vi.fn().mockResolvedValue(undefined),
+    recordTopicView: vi.fn().mockResolvedValue(false),
+    createTopic: vi.fn().mockResolvedValue({ id: 1, slug: 'test-slug', query: 'test' }),
+    getTopicStats: vi.fn().mockResolvedValue({ topicCount: 0, articleCount: 0 }),
+  };
+});
 
 // Mock AI analysis
 vi.mock("./aiAnalysis", () => ({
@@ -28,6 +55,30 @@ vi.mock("./newsIngestion", () => ({
 function createPublicContext(): TrpcContext {
   return {
     user: null,
+    req: {
+      protocol: "https",
+      headers: {},
+    } as TrpcContext["req"],
+    res: {
+      clearCookie: vi.fn(),
+    } as unknown as TrpcContext["res"],
+  };
+}
+
+function createAuthContext(): TrpcContext {
+  return {
+    user: {
+      id: 1,
+      openId: "test-open-id",
+      name: "Test User",
+      email: "test@example.com",
+      loginMethod: "oauth",
+      role: "user" as const,
+      points: 100,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSignedIn: new Date(),
+    },
     req: {
       protocol: "https",
       headers: {},
@@ -76,7 +127,7 @@ describe("topics.createOrFind", () => {
 
 describe("ai.generateStance", () => {
   it("returns generated content string", async () => {
-    const ctx = createPublicContext();
+    const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
     const result = await caller.ai.generateStance({
       topicTitle: "美以聯合空襲伊朗",
@@ -91,7 +142,7 @@ describe("ai.generateStance", () => {
   });
 
   it("validates responseType enum", async () => {
-    const ctx = createPublicContext();
+    const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
     // Should work with valid enum values
     for (const type of ["press", "social", "memo"] as const) {

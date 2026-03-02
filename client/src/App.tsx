@@ -5,8 +5,10 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
-import AdminIngest from "./pages/AdminIngest";
-import Timeline from "./pages/Timeline";
+import AdminIngest from './pages/AdminIngest';
+import AdminSeedTopics from './pages/AdminSeedTopics';
+import CreateTopic from './pages/CreateTopic';
+import Timeline from './pages/Timeline';
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
@@ -14,6 +16,8 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/timeline/:topicId" component={Timeline} />
       <Route path={"/admin/ingest"} component={AdminIngest} />
+      <Route path={"/admin/seed-topics"} component={AdminSeedTopics} />
+      <Route path={"/create-topic"} component={CreateTopic} />
       <Route path={"/404"} component={NotFound} />     <Route component={NotFound} />
     </Switch>
   );

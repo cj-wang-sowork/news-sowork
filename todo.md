@@ -63,3 +63,20 @@
 - [x] 前端：空資料時顯示「尚無熱門話題，先搜尋一個主題吧！」
 - [x] 後端：新增 topics.stats 公開 API，供首頁 Stats Bar 顯示真實話題數與新聞數
 - [x] 前端：Stats Bar 改用 topics.stats 真實數字（話題數、新聞篇數）
+
+## Sprint 8 — 新聞媒體平台轉型 (已完成)
+- [x] Schema：topics 加入 creatorId、visibility（public/private）、viewCount 欄位
+- [x] Schema：users 加入 points（點數餘額）欄位
+- [x] Schema：新增 point_transactions 表（記錄點數異動歷史）
+- [x] Schema：新增 topic_views 表（防止同一用戶重複賺點）
+- [x] 執行 db:push 同步資料庫
+- [x] 後端：topics.create API（登入用戶可建立議題，選擇 public/private）
+- [x] 後端：topics.recordView API（瀏覽公開議題時，創建者賺點，24h 去重）
+- [x] 後端：points.balance API（查詢點數餘額）
+- [x] 後端：AI 功能扣點邏輯（generateStance 消耗點數）
+- [x] 批次建立 50 個預設熱門議題（48 成功 / 2 失敗，共 52 個議題，1456 篇文章）
+- [x] 前端：首頁顯示所有公開議題（含分類篩選、最多 50 個、顯示更多按鈕）
+- [x] 前端：Navbar 顯示登入用戶點數餘額
+- [x] 前端：「建立議題」按鈕與表單（登入後才能使用，支援 public/private）
+- [x] 前端：首頁點數說明區塊（如何賺點、如何用點）
+- [x] 前端：Timeline 頁面進入時自動記錄瀏覽（觸發創建者賺點）

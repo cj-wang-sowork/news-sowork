@@ -6,10 +6,15 @@
 
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { Search, TrendingUp, TrendingDown, Minus, ArrowRight, Flame, Newspaper, Radio, Loader2 } from 'lucide-react';
+import {
+  Search, TrendingUp, TrendingDown, Minus, ArrowRight, Flame,
+  Newspaper, Radio, Loader2, Plus, Coins, Eye, Lock
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import { trpc } from '@/lib/trpc';
+import { useAuth } from '@/_core/hooks/useAuth';
+import { getLoginUrl } from '@/const';
 import { suggestedTopics } from '@/lib/mockData';
 
 type HeatLevel = 'extreme' | 'high' | 'medium' | 'low';
@@ -25,11 +30,27 @@ interface TopicCardData {
   trendPercent: number;
   totalArticles: number;
   totalMedia: number;
-  lastUpdated: Date | string;
+  viewCount?: number;
+  lastUpdated: Date | string | null;
+  creatorId?: number | null;
 }
 
 const HERO_BG = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/hero-bg-XfwRB5Ntc2dAJmMgdEDPA7.webp';
 const WORLD_MAP_BG = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/world-map-bg-MzGU8tBRSD7zZ2Q542weKJ.webp';
+
+const CATEGORIES = ['全部', '地緣政治', '科技', '氣候', '財經', '政治', '社會', '健康', '太空', '能源'];
+
+const CATEGORY_COLORS: Record<string, string> = {
+  '地緣政治': 'bg-red-50 text-red-700 border-red-100',
+  '科技': 'bg-blue-50 text-blue-700 border-blue-100',
+  '氣候': 'bg-green-50 text-green-700 border-green-100',
+  '財經': 'bg-yellow-50 text-yellow-700 border-yellow-100',
+  '政治': 'bg-purple-50 text-purple-700 border-purple-100',
+  '社會': 'bg-pink-50 text-pink-700 border-pink-100',
+  '健康': 'bg-teal-50 text-teal-700 border-teal-100',
+  '太空': 'bg-indigo-50 text-indigo-700 border-indigo-100',
+  '能源': 'bg-orange-50 text-orange-700 border-orange-100',
+};
 
 function HeatBadge({ level }: { level: HeatLevel }) {
   const config = {
@@ -67,7 +88,8 @@ function TrendIcon({ trend, percent }: { trend: TrendDir; percent: number }) {
 
 function TopicCard({ topic, index }: { topic: TopicCardData; index: number }) {
   const [, navigate] = useLocation();
-  const delay = index * 80;
+  const delay = index * 60;
+  const catColor = topic.category ? CATEGORY_COLORS[topic.category] : undefined;
 
   return (
     <div
@@ -77,7 +99,11 @@ function TopicCard({ topic, index }: { topic: TopicCardData; index: number }) {
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1 min-w-0">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{topic.category ?? '國際'}</span>
+          {topic.category && (
+            <span className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded border mb-1 ${catColor ?? 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+              {topic.category}
+            </span>
+          )}
           <h3 className="font-display font-700 text-[15px] text-foreground mt-0.5 leading-snug group-hover:text-[#FF5A1F] transition-colors line-clamp-2"
             style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif', fontWeight: 700 }}>
             {topic.query}
@@ -101,6 +127,14 @@ function TopicCard({ topic, index }: { topic: TopicCardData; index: number }) {
           </span>
           <span className="text-xs text-muted-foreground">家媒體</span>
         </div>
+        {(topic.viewCount ?? 0) > 0 && (
+          <div className="flex items-center gap-1.5">
+            <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-sm font-bold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
+              {topic.viewCount}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-1 mb-3">
@@ -118,7 +152,11 @@ function TopicCard({ topic, index }: { topic: TopicCardData; index: number }) {
         <div className="flex items-center gap-2">
           <TrendIcon trend={topic.trendDirection} percent={topic.trendPercent} />
           <span className="text-xs text-muted-foreground">
-            {typeof topic.lastUpdated === 'string' ? topic.lastUpdated : new Date(topic.lastUpdated).toLocaleDateString('zh-TW')}
+            {topic.lastUpdated
+              ? (typeof topic.lastUpdated === 'string'
+                ? topic.lastUpdated
+                : new Date(topic.lastUpdated).toLocaleDateString('zh-TW'))
+              : ''}
           </span>
         </div>
         <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-[#FF5A1F] group-hover:translate-x-1 transition-all" />
@@ -133,11 +171,15 @@ export default function Home() {
   const [topicIndex, setTopicIndex] = useState(0);
   const [charIndex, setCharIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('全部');
+  const [showAll, setShowAll] = useState(false);
   const [, navigate] = useLocation();
+  const { user } = useAuth();
 
   // Typing animation for placeholder
   useEffect(() => {
     const current = suggestedTopics[topicIndex];
+    if (!current) return;
     const timeout = setTimeout(() => {
       if (!isDeleting) {
         if (charIndex < current.length) {
@@ -159,8 +201,8 @@ export default function Home() {
     return () => clearTimeout(timeout);
   }, [charIndex, isDeleting, topicIndex]);
 
-  // Fetch real hot topics from API
-  const { data: apiTopics, isLoading: topicsLoading } = trpc.topics.hot.useQuery({ limit: 12 });
+  // Fetch real hot topics from API (limit 50)
+  const { data: apiTopics, isLoading: topicsLoading } = trpc.topics.hot.useQuery({ limit: 50 });
 
   // Fetch real stats (public API)
   const { data: siteStats } = trpc.topics.stats.useQuery();
@@ -179,19 +221,27 @@ export default function Home() {
     }
   };
 
-  // Use real API data only
-  const displayTopics: TopicCardData[] = (apiTopics ?? []).map(t => ({
+  // Filter by category
+  const allTopics: TopicCardData[] = (apiTopics ?? []).map(t => ({
     id: t.id,
     slug: t.slug,
     query: t.query,
     category: t.category,
-    heatLevel: t.heatLevel,
-    trendDirection: t.trendDirection,
+    heatLevel: t.heatLevel as HeatLevel,
+    trendDirection: t.trendDirection as TrendDir,
     trendPercent: t.trendPercent,
     totalArticles: t.totalArticles,
     totalMedia: t.totalMedia,
+    viewCount: t.viewCount,
     lastUpdated: t.lastUpdated,
+    creatorId: t.creatorId,
   }));
+
+  const filteredTopics = selectedCategory === '全部'
+    ? allTopics
+    : allTopics.filter(t => t.category === selectedCategory);
+
+  const displayTopics = showAll ? filteredTopics : filteredTopics.slice(0, 24);
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
@@ -199,7 +249,6 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        {/* Background */}
         <div
           className="absolute inset-0 opacity-20"
           style={{ backgroundImage: `url(${HERO_BG})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
@@ -210,7 +259,6 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             {/* Left: Text + Search */}
             <div className="fade-up opacity-0" style={{ animationFillMode: 'forwards' }}>
-              {/* Live badge */}
               <div className="inline-flex items-center gap-2 bg-red-50 border border-red-100 rounded-full px-3 py-1.5 mb-6">
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-xs font-semibold text-red-600 uppercase tracking-wide">Live — 持續更新中</span>
@@ -316,9 +364,35 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Points CTA Banner — 未登入時顯示 */}
+      {!user && (
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
+          <div className="container py-4">
+            <div className="flex flex-col sm:flex-row items-center gap-4 justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#FF5A1F] flex items-center justify-center flex-shrink-0">
+                  <Coins className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">建立議題，賺取點數！</p>
+                  <p className="text-xs text-muted-foreground">登入後可建立公開議題，每次被瀏覽賺 1 點。點數可用於 AI 分析功能。</p>
+                </div>
+              </div>
+              <Button
+                onClick={() => { window.location.href = getLoginUrl(); }}
+                className="bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-semibold flex-shrink-0"
+                size="sm"
+              >
+                免費登入
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hot Topics Section */}
       <section className="container py-14">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Flame className="w-5 h-5 text-[#FF5A1F]" />
@@ -328,14 +402,38 @@ export default function Home() {
             </div>
             <p className="text-sm text-muted-foreground">依「媒體家數 × 篇數」即時排序，每 15 分鐘更新</p>
           </div>
-          <Button variant="ghost" className="text-sm text-muted-foreground hover:text-foreground hidden md:flex items-center gap-1" onClick={() => alert('Feature coming soon')}>
-            查看全部 <ArrowRight className="w-4 h-4" />
-          </Button>
+          {user && (
+            <Button
+              onClick={() => navigate('/create-topic')}
+              size="sm"
+              className="hidden md:flex items-center gap-1.5 bg-[#FF5A1F] hover:bg-[#e04d18] text-white"
+            >
+              <Plus className="w-4 h-4" />
+              建立議題
+            </Button>
+          )}
+        </div>
+
+        {/* Category Filter */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 scrollbar-hide">
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => { setSelectedCategory(cat); setShowAll(false); }}
+              className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                selectedCategory === cat
+                  ? 'bg-[#FF5A1F] text-white border-[#FF5A1F]'
+                  : 'bg-white text-muted-foreground border-border hover:border-[#FF5A1F] hover:text-[#FF5A1F]'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
 
         {topicsLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 9 }).map((_, i) => (
               <div key={i} className="bg-white rounded-2xl border border-border p-5 animate-pulse">
                 <div className="h-4 bg-gray-100 rounded mb-3 w-3/4" />
                 <div className="h-3 bg-gray-100 rounded mb-2 w-1/2" />
@@ -348,16 +446,114 @@ export default function Home() {
             <div className="w-16 h-16 rounded-full bg-[#FF5A1F]/10 flex items-center justify-center mb-4">
               <Search className="w-7 h-7 text-[#FF5A1F]" />
             </div>
-            <h3 className="text-lg font-bold text-foreground mb-2" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>尚無熱門話題</h3>
-            <p className="text-sm text-muted-foreground max-w-sm">先在上方搜尋框輸入一個主題，AI 就會自動建立時間軸並加入排行！</p>
+            <h3 className="text-lg font-bold text-foreground mb-2" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
+              {selectedCategory === '全部' ? '尚無熱門話題' : `尚無「${selectedCategory}」分類的話題`}
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              先在上方搜尋框輸入一個主題，AI 就會自動建立時間軸並加入排行！
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {displayTopics.map((topic, i) => (
-              <TopicCard key={String(topic.id)} topic={topic} index={i} />
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {displayTopics.map((topic, i) => (
+                <TopicCard key={String(topic.id)} topic={topic} index={i} />
+              ))}
+            </div>
+
+            {/* Show More / Create CTA */}
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+              {filteredTopics.length > 24 && !showAll && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAll(true)}
+                  className="flex items-center gap-2 border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F]"
+                >
+                  查看全部 {filteredTopics.length} 個議題
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              )}
+              {user ? (
+                <Button
+                  onClick={() => navigate('/create-topic')}
+                  className="flex items-center gap-2 bg-[#FF5A1F] hover:bg-[#e04d18] text-white"
+                >
+                  <Plus className="w-4 h-4" />
+                  建立你自己的議題
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => { window.location.href = getLoginUrl(); }}
+                  variant="outline"
+                  className="flex items-center gap-2 border-[#FF5A1F] text-[#FF5A1F] hover:bg-orange-50"
+                >
+                  <Lock className="w-4 h-4" />
+                  登入後建立議題
+                </Button>
+              )}
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Points Explainer Section */}
+      <section className="bg-white border-t border-border">
+        <div className="container py-14">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-extrabold text-foreground mb-2" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
+              如何賺取與使用點數？
+            </h2>
+            <p className="text-sm text-muted-foreground">NewsFlow 點數系統，讓優質內容創作者獲得回報</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                icon: <Plus className="w-6 h-6 text-[#FF5A1F]" />,
+                title: '建立公開議題',
+                desc: '登入後免費建立議題，選擇公開讓所有人瀏覽',
+                badge: '免費',
+                badgeColor: 'bg-green-50 text-green-700',
+              },
+              {
+                icon: <Eye className="w-6 h-6 text-[#FF5A1F]" />,
+                title: '被瀏覽賺點數',
+                desc: '每次其他用戶瀏覽你的公開議題，你賺取 1 點（24 小時去重）',
+                badge: '+1 點/次',
+                badgeColor: 'bg-orange-50 text-orange-700',
+              },
+              {
+                icon: <Coins className="w-6 h-6 text-[#FF5A1F]" />,
+                title: '點數換 AI 功能',
+                desc: '使用 AI 立場回覆建議等進階功能，每次消耗 10 點',
+                badge: '-10 點/次',
+                badgeColor: 'bg-blue-50 text-blue-700',
+              },
+            ].map((item, i) => (
+              <div key={i} className="flex flex-col items-center text-center p-6 rounded-2xl border border-border hover:border-[#FF5A1F]/30 transition-colors">
+                <div className="w-12 h-12 rounded-xl bg-[#FF5A1F]/10 flex items-center justify-center mb-4">
+                  {item.icon}
+                </div>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mb-3 ${item.badgeColor}`}>
+                  {item.badge}
+                </span>
+                <h3 className="font-bold text-foreground mb-2" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
+                  {item.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+              </div>
             ))}
           </div>
-        )}
+          {!user && (
+            <div className="text-center mt-8">
+              <Button
+                onClick={() => { window.location.href = getLoginUrl(); }}
+                className="bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-semibold px-8"
+              >
+                立即免費登入，開始賺點數
+              </Button>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Footer */}
