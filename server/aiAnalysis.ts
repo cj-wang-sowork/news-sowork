@@ -5,7 +5,7 @@
 
 import { invokeLLM } from "./_core/llm";
 import { ENV } from "./_core/env";
-import { getDb } from "./db";
+import { getDb, updateTopicStats } from "./db";
 import { topics, turningPoints, newsArticles, type InsertTurningPoint } from "../drizzle/schema";
 import { eq, desc, like, sql, or, inArray } from "drizzle-orm";
 
@@ -371,8 +371,14 @@ function parseDateFromLabel(dateLabel: string): Date {
 // ─── Store Timeline in Database (增量新增，不清除舊轉折點) ─────────────────────
 async function storeTimeline(
   topicId: number,
-  turningPointsData: TurningPointData[]
+  turningPointsData: TurningPointData[],
+  newsItems: NewsItem[] = [] // 真實 RSS 文章列表，用於匹配真實標題和媒體名稱
 ): Promise<void> {
+  // 建立 URL 到真實文章的對映表
+  const urlToArticle = new Map<string, NewsItem>();
+  for (const item of newsItems) {
+    urlToArticle.set(item.url, item);
+  }
   const db = await getDb();
   if (!db) return;
 
@@ -438,19 +444,29 @@ async function storeTimeline(
       .limit(1);
     if (!latestTP) continue;
 
-    // 儲存來源文章
-    const sourceUrls = point.source_urls.slice(0, 3);
+    // 儲存來源文章（優先使用真實 RSS 標題和媒體名稱）
+    const sourceUrls = point.source_urls.slice(0, 5); // 最多儲 5 篇
     for (const url of sourceUrls) {
       if (!url || url.length < 10) continue;
       try {
+        // 嘗試從 newsItems 中找到對應的真實文章
+        const realArticle = urlToArticle.get(url);
+        const articleTitle = realArticle?.title ?? `${point.title} — 相關報導`;
+        const articleSource = realArticle?.source ?? extractDomain(url);
+        const articlePublishedAt = realArticle?.publishedAt ? new Date(realArticle.publishedAt) : eventDate;
+        const articleLang = realArticle ? (
+          /[一-鿿㐀-䶿]/.test(realArticle.title) ? 'zh-TW' :
+          /[一-鿿]/.test(realArticle.title) ? 'zh-CN' : 'en'
+        ) : 'zh-TW';
+
         await db.insert(newsArticles).values({
-          title: `${point.title} — 相關報導`,
+          title: articleTitle,
           url,
-          source: extractDomain(url),
-          publishedAt: eventDate,
+          source: articleSource,
+          publishedAt: articlePublishedAt,
           topicId,
           turningPointId: latestTP.id,
-          language: "zh-TW",
+          language: articleLang,
         });
       } catch {
         // Ignore duplicate URL errors
@@ -767,7 +783,10 @@ export async function buildTopicTimeline(query: string): Promise<{
     .where(eq(topics.id, topic.id));
 
   // Step 6: Store timeline in DB
-  await storeTimeline(topic.id, turningPointsData);
+  await storeTimeline(topic.id, turningPointsData, newsItems);
+
+  // Step 6b: 更新真實的文章數和媒體家數（用真實 source domain 去重計算）
+  await updateTopicStats(topic.id);
 
   // Step 7: Return complete timeline
   const tpList = await db

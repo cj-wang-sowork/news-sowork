@@ -266,3 +266,10 @@
 - [x] 累積轉折點：新轉折點加入現有議題，不重複建立新議題
 - [x] 新增 admin mergeTopics API：手動合併重複議題
 - [x] 清理資料庫：伺朗 4 個重複議題合併為 1 個，現有 5 個轉折點
+
+## Sprint 32 — 修復議題卡片與時間軸顯示問題
+- [x] 隱藏 0 篇報導的議題卡片（台北關稅等無新聞議題不再顯示）
+- [x] 修正時間語意：卡片 lastUpdated 改為最新一篇新聞的 publishedAt，而非 AI 分析完成時間
+- [x] 改善媒體家數計算：用真實 source domain 去重計算，並在 storeTimeline 後呼叫 updateTopicStats
+- [x] 修復 storeTimeline：儲存真實 RSS 標題和媒體名稱，而非假標題「轉折點標題 — 相關報導」
+- [x] 批次更新現有 57 個議題的 lastUpdated 為真實新聞時間

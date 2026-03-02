@@ -282,9 +282,11 @@ export default function Home() {
 
   // Filter by category and tag
   const filteredTopics = useMemo(() => {
-    let result = selectedCategory === '全部'
-      ? allTopics
-      : allTopics.filter(t => t.category === selectedCategory);
+    // 隱藏 0 篇報導的議題（尚未收集到新聞）
+    let result = allTopics.filter(t => (t.totalArticles ?? 0) > 0);
+    if (selectedCategory !== '全部') {
+      result = result.filter(t => t.category === selectedCategory);
+    }
     if (selectedTag) {
       result = result.filter(t => t.tags?.includes(selectedTag));
     }
