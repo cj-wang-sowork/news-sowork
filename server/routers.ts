@@ -16,6 +16,7 @@ import { triggerManualUpdate } from "./scheduler";
 import { getDb } from "./db";
 import {
   topics,
+  turningPoints,
   newsArticles,
   users,
   pointTransactions,
@@ -893,6 +894,68 @@ ${input.currentContent}
           }
         }
         return { results, successCount: results.filter(r => r.success).length };
+      }),
+
+    // 合併重複議題：將多個議題的轉折點合併到主議題
+    mergeTopics: protectedProcedure
+      .input(z.object({
+        primaryTopicId: z.number().int().positive(),
+        mergeTopicIds: z.array(z.number().int().positive()).min(1).max(20),
+        newTitle: z.string().min(1).max(100).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error('資料庫連線失敗');
+
+        const { primaryTopicId, mergeTopicIds, newTitle } = input;
+        let movedCount = 0;
+        let skippedCount = 0;
+
+        for (const fromId of mergeTopicIds) {
+          if (fromId === primaryTopicId) continue;
+
+          const tpsToMove = await db.select().from(turningPoints).where(eq(turningPoints.topicId, fromId));
+
+          const existingTPs = await db
+            .select({ title: turningPoints.title, dateLabel: turningPoints.dateLabel })
+            .from(turningPoints)
+            .where(eq(turningPoints.topicId, primaryTopicId));
+          const existingTitles = new Set(existingTPs.map(t => t.title));
+          const existingDates = new Set(existingTPs.map(t => t.dateLabel));
+
+          for (const tp of tpsToMove) {
+            if (existingTitles.has(tp.title) || existingDates.has(tp.dateLabel)) {
+              skippedCount++;
+              continue;
+            }
+            await db.update(turningPoints).set({ topicId: primaryTopicId }).where(eq(turningPoints.id, tp.id));
+            await db.update(newsArticles).set({ topicId: primaryTopicId }).where(eq(newsArticles.turningPointId, tp.id));
+            movedCount++;
+          }
+
+          // 刪除被合併的議題
+          await db.delete(newsArticles).where(eq(newsArticles.topicId, fromId));
+          await db.delete(turningPoints).where(eq(turningPoints.topicId, fromId));
+          await db.delete(userTopics).where(eq(userTopics.topicId, fromId));
+          await db.delete(topics).where(eq(topics.id, fromId));
+        }
+
+        // 更新主議題統計
+        const allTPs = await db.select().from(turningPoints).where(eq(turningPoints.topicId, primaryTopicId));
+        await db.update(topics).set({
+          ...(newTitle ? { query: newTitle } : {}),
+          totalArticles: allTPs.reduce((s, tp) => s + (tp.articleCount ?? 0), 0),
+          totalMedia: Math.max(...allTPs.map(tp => tp.mediaCount ?? 0), 0),
+          lastUpdated: new Date(),
+        }).where(eq(topics.id, primaryTopicId));
+
+        return {
+          success: true,
+          movedTurningPoints: movedCount,
+          skippedDuplicates: skippedCount,
+          mergedTopicsCount: mergeTopicIds.length,
+          message: `合併完成！移入 ${movedCount} 個轉折點，跳過 ${skippedCount} 個重複，刪除 ${mergeTopicIds.length} 個重複議題`,
+        };
       }),
   }),
 });
