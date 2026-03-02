@@ -229,3 +229,8 @@
 - [x] 偵測查詢語言（繁中/簡中/日文/韓文/英文）
 - [x] 簡中查詢自動路由到 QWEN（通義千問）進行分析
 - [x] QWEN API Key 已儲存並驗證通過
+
+## Sprint 27 — RSS Seed 同步 + AI 查詢詞擴展
+- [x] AdminIngest 頁面更新為 202 個來源說明
+- [x] admin.triggerIngest 已包含 seedRssSources，點擊即同步
+- [x] AI 查詢詞擴展：LLM 先把口語詞轉換為新聞關鍵字再搜尋（支援繁中/簡中/英文/日文/韓文）

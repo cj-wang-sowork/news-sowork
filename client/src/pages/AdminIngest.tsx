@@ -124,23 +124,23 @@ export default function AdminIngest() {
         <div className="bg-white rounded-2xl border border-border p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <Database className="w-4 h-4 text-[#FF5A1F]" />
-            <h3 className="font-bold text-foreground text-sm">已設定的 RSS 來源（10 個）</h3>
+            <h3 className="font-bold text-foreground text-sm">已設定的 RSS 來源（202 個）</h3>
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm">
             {[
-              { flag: '🇹🇼', name: '自由時報' },
-              { flag: '🇹🇼', name: '聯合新聞網' },
-              { flag: '🇹🇼', name: '公視新聞' },
-              { flag: '🇹🇼', name: '中央社' },
-              { flag: '🇬🇧', name: 'BBC 中文' },
-              { flag: '🇺🇸', name: 'VOA 中文' },
-              { flag: '🇬🇧', name: 'Reuters' },
-              { flag: '🇺🇸', name: 'AP News' },
-              { flag: '🇶🇦', name: 'Al Jazeera' },
-              { flag: '🇯🇵', name: 'NHK 日本語' },
+              { flag: '🇹🇼', name: '自由時報、聯合新聞網、公視、TVBS、三立、東森、天下、商周' },
+              { flag: '🇭🇰', name: '明報、蘋果日報、香港電台、端傳媒' },
+              { flag: '🇨🇳', name: '人民日報、新華社、環球時報、中國日報' },
+              { flag: '🇺🇸', name: 'AP、Reuters、CNN、NYT、WaPo、NPR、TechCrunch、Wired' },
+              { flag: '🇬🇧', name: 'BBC、The Guardian、The Economist、Financial Times' },
+              { flag: '🇯🇵', name: 'NHK、朝日新聞、讀賣新聞、共同通信、Nikkei Asia' },
+              { flag: '🇰🇷', name: '韓聯社、朝鮮日報、中央日報' },
+              { flag: '🌏', name: 'Al Jazeera、SCMP、The Diplomat、Foreign Policy' },
+              { flag: '🌍', name: '法新社、德國之聲、澳洲ABC、紐西蘭RNZ' },
+              { flag: '🔬', name: 'Nature、Science Daily、Ars Technica' },
             ].map(src => (
-              <div key={src.name} className="flex items-center gap-2 text-muted-foreground">
-                <span>{src.flag}</span>
+              <div key={src.name} className="flex items-start gap-2 text-muted-foreground col-span-2">
+                <span className="flex-shrink-0">{src.flag}</span>
                 <span className="text-xs">{src.name}</span>
               </div>
             ))}
@@ -151,8 +151,8 @@ export default function AdminIngest() {
         <div className="bg-white rounded-2xl border border-border p-6">
           <h3 className="font-bold text-foreground mb-2">觸發全量抓取</h3>
           <p className="text-sm text-muted-foreground mb-5">
-            系統將依序抓取所有 10 個 RSS 來源，每個來源最多取 20 篇最新文章，去重後存入資料庫。
-            首次執行約需 30–60 秒。
+            系統將同步 202 個全球 RSS 來源到資料庫，並抓取最新新聞。每個來源最多取 20 篇，去重後存入資料庫。
+            首次執行約需 2–3 分鐘。
           </p>
 
           <Button

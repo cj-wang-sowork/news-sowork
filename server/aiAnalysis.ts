@@ -549,11 +549,56 @@ export async function buildTopicTimeline(query: string): Promise<{
 
   if (!topic) return null;
 
-  // Step 3: Detect query language and search Google News RSS
+  // Step 3: Detect query language and expand query keywords via AI
   const queryLanguage = detectQueryLanguage(query);
   console.log(`[Timeline] Query language: ${queryLanguage} for: "${query}"`);
-  console.log(`[Timeline] Searching Google News for: "${query}"`);
-  const { items: newsItems, rawText } = await searchGoogleNews(query);
+
+  // AI 查詢詞擴展：將口語化詞轉換為新聞關鍵字
+  const llmForExpansion = selectLLM(queryLanguage);
+  let searchQuery = query;
+  try {
+    const expansionResp = await llmForExpansion({
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a news search keyword optimizer. Convert colloquial or ambiguous queries into precise news search keywords. Return ONLY a JSON object with field "keywords" (array of 3-5 strings) and "primary" (the best single search phrase, max 20 chars).'
+        },
+        {
+          role: 'user',
+          content: `Convert this query into news search keywords: "${query}"\nLanguage: ${queryLanguage}\nReturn JSON only.`
+        }
+      ],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'keyword_expansion',
+          strict: true,
+          schema: {
+            type: 'object',
+            properties: {
+              keywords: { type: 'array', items: { type: 'string' } },
+              primary: { type: 'string' }
+            },
+            required: ['keywords', 'primary'],
+            additionalProperties: false
+          }
+        }
+      }
+    });
+    const expansionContent = expansionResp.choices?.[0]?.message?.content;
+    if (expansionContent) {
+      const parsed = typeof expansionContent === 'string' ? JSON.parse(expansionContent) : expansionContent;
+      if (parsed?.primary && parsed.primary !== query) {
+        console.log(`[Timeline] Query expanded: "${query}" → "${parsed.primary}" (keywords: ${parsed.keywords?.join(', ')})`);
+        searchQuery = parsed.primary;
+      }
+    }
+  } catch (err) {
+    console.warn('[Timeline] Query expansion failed, using original query:', (err as Error).message);
+  }
+
+  console.log(`[Timeline] Searching Google News for: "${searchQuery}"`);
+  const { items: newsItems, rawText } = await searchGoogleNews(searchQuery);
 
   if (newsItems.length === 0) {
     console.warn(`[Timeline] No news found for: "${query}"`);
