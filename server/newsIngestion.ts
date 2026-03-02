@@ -211,6 +211,45 @@ export const DEFAULT_RSS_SOURCES = [
   { name: "CNBC World", url: "https://www.cnbc.com/id/100727362/device/rss/rss.html", language: "en", country: "US", flag: "🇺🇸", category: "財經" },
   { name: "Wall Street Journal", url: "https://feeds.a.dj.com/rss/RSSWorldNews.xml", language: "en", country: "US", flag: "🇺🇸", category: "財經" },
   { name: "Quartz", url: "https://qz.com/feed", language: "en", country: "US", flag: "🇺🇸", category: "財經" },
+
+  // ── Part 2: 東亞新增 🇯🇵🇰🇷 ──
+  { name: "NHK World RSS", url: "https://www3.nhk.or.jp/nhkworld/en/news/feeds/", language: "en", country: "JP", flag: "🇯🇵", category: "國際" },
+  { name: "Mainichi", url: "https://mainichi.jp/english/rss/etc/atom.xml", language: "en", country: "JP", flag: "🇯🇵", category: "全國" },
+  { name: "Korea Herald", url: "http://www.koreaherald.com/common/rss_xml.php", language: "en", country: "KR", flag: "🇰🇷", category: "全國" },
+  { name: "Korea Times", url: "https://www.koreatimes.co.kr/www/rss/rss.xml", language: "en", country: "KR", flag: "🇰🇷", category: "全國" },
+
+  // ── Part 2: 東南亞新增 🇮🇩🇵🇭🇻🇳 ──
+  { name: "Straits Times Asia", url: "https://www.straitstimes.com/news/asia/rss.xml", language: "en", country: "SG", flag: "🇸🇬", category: "亞洲" },
+  { name: "VnExpress", url: "https://e.vnexpress.net/rss/news.rss", language: "en", country: "VN", flag: "🇻🇳", category: "全國" },
+  { name: "Manila Times", url: "https://www.manilatimes.net/feed/", language: "en", country: "PH", flag: "🇵🇭", category: "全國" },
+
+  // ── Part 2: 南亞新增 🇮🇳🇵🇰🇧🇩 ──
+  { name: "NDTV", url: "https://feeds.feedburner.com/ndtvnews-top-stories", language: "en", country: "IN", flag: "🇮🇳", category: "全國" },
+  { name: "The Hindu", url: "https://www.thehindu.com/feeder/default.rss", language: "en", country: "IN", flag: "🇮🇳", category: "全國" },
+  { name: "Daily Star Bangladesh", url: "https://www.thedailystar.net/frontpage/rss.xml", language: "en", country: "BD", flag: "🇧🇩", category: "全國" },
+
+  // ── Part 2: 信主新增 🇷🇺 ──
+  { name: "RT Russia", url: "https://www.rt.com/rss/news/", language: "en", country: "RU", flag: "🇷🇺", category: "國際" },
+  { name: "TASS", url: "https://tass.com/rss/v2.xml", language: "en", country: "RU", flag: "🇷🇺", category: "國際" },
+
+  // ── Part 2: 非洲新增 🇰🇪🇳🇬🇿🇦 ──
+  { name: "Daily Nation Kenya", url: "https://nation.africa/service/rss/kenya/1950774/feed.rss", language: "en", country: "KE", flag: "🇰🇪", category: "非洲" },
+  { name: "Premium Times Nigeria", url: "https://www.premiumtimesng.com/feed", language: "en", country: "NG", flag: "🇳🇬", category: "非洲" },
+  { name: "Egypt Independent", url: "https://egyptindependent.com/feed/", language: "en", country: "EG", flag: "🇪🇬", category: "非洲" },
+  { name: "Daily Maverick SA", url: "https://www.dailymaverick.co.za/feed/", language: "en", country: "ZA", flag: "🇿🇦", category: "非洲" },
+
+  // ── Part 2: 拉丁美洲新增 🇧🇷🇦🇷🇨🇴 ──
+  { name: "Reuters LatAm", url: "https://www.reuters.com/arc/outboundfeeds/v3/all/?outputType=xml&size=20", language: "en", country: "US", flag: "🇺🇸", category: "拉丁美洲" },
+  { name: "Buenos Aires Times", url: "https://www.batimes.com.ar/feed", language: "en", country: "AR", flag: "🇦🇷", category: "拉丁美洲" },
+  { name: "Brazil Wire", url: "https://www.brasilwire.com/feed/", language: "en", country: "BR", flag: "🇧🇷", category: "拉丁美洲" },
+  { name: "Merco Press", url: "https://en.mercopress.com/rss", language: "en", country: "UY", flag: "🇺🇾", category: "拉丁美洲" },
+  { name: "Colombia Reports", url: "https://colombiareports.com/feed/", language: "en", country: "CO", flag: "🇨🇴", category: "拉丁美洲" },
+
+  // ── Part 2: 大洋洲新增 🇦🇺🇳🇿 ──
+  { name: "SBS Australia", url: "https://www.sbs.com.au/news/feed", language: "en", country: "AU", flag: "🇦🇺", category: "全國" },
+  { name: "ABC Australia", url: "https://www.abc.net.au/news/feed/2942460/rss.xml", language: "en", country: "AU", flag: "🇦🇺", category: "全國" },
+  { name: "NZ Herald RSS", url: "https://www.nzherald.co.nz/arc/outboundfeeds/rss/curated/78/?outputType=xml", language: "en", country: "NZ", flag: "🇳🇿", category: "全國" },
+  { name: "RNZ New Zealand", url: "https://www.rnz.co.nz/rss/national.xml", language: "en", country: "NZ", flag: "🇳🇿", category: "全國" },
 ];
 
 // ─── Seed RSS Sources ─────────────────────────────────────────────────────────
