@@ -7,6 +7,7 @@ import {
   mysqlTable,
   text,
   timestamp,
+  tinyint,
   varchar,
 } from "drizzle-orm/mysql-core";
 
@@ -20,6 +21,9 @@ export const users = mysqlTable("users", {
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   // 點數餘額：新用戶預設 100 點（歡迎禮）
   points: int("points").default(100).notNull(),
+  // Password authentication fields
+  passwordHash: varchar("passwordHash", { length: 255 }),
+  authMethod: mysqlEnum("authMethod", ["password", "oauth"]).default("password"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

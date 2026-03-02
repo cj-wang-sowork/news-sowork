@@ -104,7 +104,7 @@ function TrendIcon({ trend, percent }: { trend: TrendDir; percent: number }) {
   );
 }
 
-function TopicCard({ topic, index }: { topic: TopicCardData; index: number }) {
+function TopicCard({ topic, index, onTagClick }: { topic: TopicCardData; index: number; onTagClick?: (tag: string) => void }) {
   const [, navigate] = useLocation();
   const delay = index * 60;
   const catColor = topic.category ? CATEGORY_COLORS[topic.category] : undefined;
@@ -166,13 +166,17 @@ function TopicCard({ topic, index }: { topic: TopicCardData; index: number }) {
         {topic.totalMedia > 20 && <span className="text-xs text-muted-foreground ml-1">+{topic.totalMedia - 20}</span>}
       </div>
 
-      {/* Tags */}
+      {/* Tags — click to filter */}
       {topic.tags && topic.tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-3">
           {topic.tags.slice(0, 3).map(tag => (
-            <span key={tag} className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+            <button
+              key={tag}
+              onClick={(e) => { e.stopPropagation(); onTagClick?.(tag); }}
+              className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-[#FF5A1F] transition-colors cursor-pointer"
+            >
               <Tag className="w-2.5 h-2.5" />{tag}
-            </span>
+            </button>
           ))}
         </div>
       )}
@@ -437,7 +441,7 @@ export default function Home() {
       )}
 
       {/* Hot Topics Section */}
-      <section className="container py-14">
+      <section id="topics-section" className="container py-14">
         <div className="flex items-center justify-between mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -506,7 +510,18 @@ export default function Home() {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {displayTopics.map((topic, i) => (
-                <TopicCard key={String(topic.id)} topic={topic} index={i} />
+                <TopicCard
+                  key={String(topic.id)}
+                  topic={topic}
+                  index={i}
+                  onTagClick={(tag) => {
+                    setSelectedTag(tag);
+                    setSelectedCategory('全部');
+                    setShowAll(false);
+                    // 滚動到議題區塊
+                    document.getElementById('topics-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                />
               ))}
             </div>
 

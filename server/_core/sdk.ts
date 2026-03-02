@@ -212,19 +212,17 @@ class SDKServer {
       });
       const { openId, appId, name } = payload as Record<string, unknown>;
 
-      if (
-        !isNonEmptyString(openId) ||
-        !isNonEmptyString(appId) ||
-        !isNonEmptyString(name)
-      ) {
-        console.warn("[Auth] Session payload missing required fields");
+      // openId is required; appId and name are optional to stay compatible
+      // with JWTs issued by SoWork.ai (which may have empty name/appId).
+      if (!isNonEmptyString(openId)) {
+        console.warn("[Auth] Session payload missing required field (openId)");
         return null;
       }
 
       return {
-        openId,
-        appId,
-        name,
+        openId: openId as string,
+        appId: typeof appId === "string" ? appId : "",
+        name: typeof name === "string" ? name : "",
       };
     } catch (error) {
       console.warn("[Auth] Session verification failed", String(error));
@@ -284,7 +282,12 @@ class SDKServer {
         user = await db.getUserByOpenId(userInfo.openId);
       } catch (error) {
         console.error("[Auth] Failed to sync user from OAuth:", error);
-        throw ForbiddenError("Failed to sync user info");
+        // For password-auth users, the user should already be in DB.
+        // Only throw if user truly doesn't exist.
+        user = await db.getUserByOpenId(sessionUserId);
+        if (!user) {
+          throw ForbiddenError("Failed to sync user info");
+        }
       }
     }
 

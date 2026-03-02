@@ -6,11 +6,10 @@
 
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Globe, Menu, X, Zap, Coins, LogOut, Plus, User } from 'lucide-react';
+import { Globe, Menu, X, Zap, Coins, LogOut, Plus, User, Bookmark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { trpc } from '@/lib/trpc';
-import { getLoginUrl } from '@/const';
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -22,10 +21,6 @@ export default function Navbar() {
     enabled: !!user,
     refetchInterval: 30000, // 每 30 秒刷新
   });
-
-  const handleLogin = () => {
-    window.location.href = getLoginUrl();
-  };
 
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border">
@@ -53,9 +48,14 @@ export default function Navbar() {
                 探索話題
               </Button>
             </Link>
-            <Button variant="ghost" size="sm" className="text-sm font-medium text-muted-foreground hover:text-foreground" onClick={() => alert('Feature coming soon')}>
-              訂閱追蹤
-            </Button>
+            {user && (
+              <Link href="/my-topics">
+                <Button variant="ghost" size="sm" className={`text-sm font-medium flex items-center gap-1.5 ${location === '/my-topics' ? 'text-[#FF5A1F]' : 'text-muted-foreground hover:text-foreground'}`}>
+                  <Bookmark className="w-3.5 h-3.5" />
+                  我的議題
+                </Button>
+              </Link>
+            )}
           </nav>
 
           {/* Right Actions */}
@@ -104,13 +104,14 @@ export default function Navbar() {
                 </div>
               </>
             ) : (
-              <Button
-                size="sm"
-                className="hidden md:flex bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-semibold shadow-sm"
-                onClick={handleLogin}
-              >
-                登入 / 免費使用
-              </Button>
+              <Link href="/auth/login">
+                <Button
+                  size="sm"
+                  className="hidden md:flex bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-semibold shadow-sm"
+                >
+                  登入 / 免費使用
+                </Button>
+              </Link>
             )}
 
             <Button
@@ -143,6 +144,12 @@ export default function Navbar() {
                 <span className="text-sm font-bold text-[#FF5A1F]">{pointsData?.points ?? 0} 點</span>
                 <span className="text-xs text-orange-400 ml-auto">{user.name ?? '用戶'}</span>
               </div>
+              <Link href="/my-topics" onClick={() => setMenuOpen(false)}>
+                <Button variant="ghost" className="w-full justify-start text-sm">
+                  <Bookmark className="w-4 h-4 mr-2" />
+                  我的議題
+                </Button>
+              </Link>
               <Link href="/create-topic" onClick={() => setMenuOpen(false)}>
                 <Button className="w-full mt-1 border-[#FF5A1F] text-[#FF5A1F] bg-orange-50 hover:bg-orange-100" variant="outline">
                   <Plus className="w-4 h-4 mr-1.5" />
@@ -155,9 +162,11 @@ export default function Navbar() {
               </Button>
             </>
           ) : (
-            <Button className="w-full mt-2 bg-[#FF5A1F] hover:bg-[#e04d18] text-white" onClick={handleLogin}>
-              登入 / 免費使用
-            </Button>
+            <Link href="/auth/login" onClick={() => setMenuOpen(false)}>
+              <Button className="w-full mt-2 bg-[#FF5A1F] hover:bg-[#e04d18] text-white">
+                登入 / 免費使用
+              </Button>
+            </Link>
           )}
         </div>
       )}

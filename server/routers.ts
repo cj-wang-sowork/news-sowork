@@ -8,6 +8,7 @@ import {
   getTopicBySlug,
   getTopicTurningPoints,
   getTurningPointNews,
+  getUserByEmail,
 } from "./db";
 import { fetchAndStoreArticles, seedRssSources } from "./newsIngestion";
 import { buildTopicTimeline, generateStanceResponse } from "./aiAnalysis";
@@ -19,8 +20,12 @@ import {
   users,
   pointTransactions,
   topicViews,
+  userTopics,
 } from "../drizzle/schema";
 import { like, desc, sql, eq, and, gte } from "drizzle-orm";
+import bcrypt from "bcrypt";
+import { nanoid } from "nanoid";
+import { sdk } from "./_core/sdk";
 
 // ─── Point costs ──────────────────────────────────────────────────────────────
 const POINT_COST_AI_STANCE = 10;   // AI 立場回覆：扣 10 點
@@ -50,6 +55,73 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+
+    // 注冊（Email / Password）
+    register: publicProcedure
+      .input(z.object({
+        email: z.string().email(),
+        password: z.string().min(8, "密碼至少8個字元"),
+        name: z.string().min(1, "請輸入姓名").max(64),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // 檢查 email 是否已存在
+        const existing = await getUserByEmail(input.email);
+        if (existing) {
+          throw new Error("此 Email 已被注冊，請直接登入或使用其他 Email");
+        }
+        const db = await getDb();
+        if (!db) throw new Error("資料庫連線失敗");
+        // 加密密碼
+        const passwordHash = await bcrypt.hash(input.password, 12);
+        // 生成唯一 openId（本地註冊用戶不經過 Manus OAuth）
+        const openId = `local_${nanoid(16)}`;
+        // 建立用戶
+        await db.insert(users).values({
+          openId,
+          email: input.email,
+          name: input.name,
+          passwordHash,
+          authMethod: "password",
+          loginMethod: "email",
+          lastSignedIn: new Date(),
+        });
+        const newUser = await getUserByEmail(input.email);
+        if (!newUser) throw new Error("建立用戶失敗");
+        // 發放歡迎點
+        await addPoints(db, newUser.id, 100, "welcome", undefined, "新用戶歡迎點");
+        // 發行 session cookie
+        const token = await sdk.createSessionToken(openId, { name: input.name });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
+        return { success: true, user: { id: newUser.id, name: newUser.name, email: newUser.email } };
+      }),
+
+    // 登入（Email / Password）
+    login: publicProcedure
+      .input(z.object({
+        email: z.string().email(),
+        password: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const user = await getUserByEmail(input.email);
+        if (!user || !user.passwordHash) {
+          throw new Error("郵箱或密碼錯誤");
+        }
+        const isValid = await bcrypt.compare(input.password, user.passwordHash);
+        if (!isValid) {
+          throw new Error("郵箱或密碼錯誤");
+        }
+        // 登入成功，發行 session cookie
+        const token = await sdk.createSessionToken(user.openId, { name: user.name ?? "" });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
+        // 更新最後登入時間
+        const db = await getDb();
+        if (db) {
+          await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, user.id));
+        }
+        return { success: true, user: { id: user.id, name: user.name, email: user.email } };
+      }),
   }),
 
   // ─── Points ────────────────────────────────────────────────────────────────
@@ -142,7 +214,6 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const topic = await getTopicBySlug(input.slug);
         if (!topic) return null;
-
         const tpList = await getTopicTurningPoints(topic.id);
         const turningPointsWithNews = await Promise.all(
           tpList.map(async (tp) => {
@@ -168,11 +239,33 @@ export const appRouter = router({
             };
           })
         );
-
+        // 同步計算真實的文章數和媒體數，確保卡片與詳情頁一致
+        const db = await getDb();
+        if (db && tpList.length > 0) {
+          const [statsRow] = await db
+            .select({
+              totalArticles: sql<number>`COUNT(DISTINCT ${newsArticles.id})`,
+              totalMedia: sql<number>`COUNT(DISTINCT ${newsArticles.source})`,
+            })
+            .from(newsArticles)
+            .where(eq(newsArticles.topicId, topic.id));
+          if (statsRow) {
+            const realArticles = Number(statsRow.totalArticles ?? 0);
+            const realMedia = Number(statsRow.totalMedia ?? 0);
+            // 如果快取值與真實值不一致，更新快取
+            if (realArticles !== topic.totalArticles || realMedia !== topic.totalMedia) {
+              await db
+                .update(topics)
+                .set({ totalArticles: realArticles, totalMedia: realMedia })
+                .where(eq(topics.id, topic.id));
+              topic.totalArticles = realArticles;
+              topic.totalMedia = realMedia;
+            }
+          }
+        }
         return { topic, turningPoints: turningPointsWithNews };
       }),
-
-    // 瀏覽議題：記錄瀏覽次數，並為創建者賺點（24h 去重）
+    // 瀏覽議題題：記錄瀏覽次數，並為創建者賺點（24h 去重）
     recordView: publicProcedure
       .input(z.object({ slug: z.string() }))
       .mutation(async ({ ctx, input }) => {
@@ -254,7 +347,7 @@ export const appRouter = router({
         };
       }),
 
-    // 用戶自己的議題列表
+    // 用戶自己建立的議題列表
     myTopics: protectedProcedure
       .input(z.object({ limit: z.number().min(1).max(50).default(20) }).optional())
       .query(async ({ ctx, input }) => {
@@ -266,6 +359,89 @@ export const appRouter = router({
           .where(eq(topics.creatorId, ctx.user.id))
           .orderBy(desc(topics.createdAt))
           .limit(input?.limit ?? 20);
+      }),
+    // 用戶追蹤的議題列表（包含自建 + 追蹤公開議題）
+    savedTopics: protectedProcedure
+      .query(async ({ ctx }) => {
+        const db = await getDb();
+        if (!db) return [];
+        // 列出用戶追蹤的議題（join topics 表）
+        const saved = await db
+          .select({
+            id: userTopics.id,
+            topicId: userTopics.topicId,
+            isPinned: userTopics.isPinned,
+            createdAt: userTopics.createdAt,
+            topicQuery: topics.query,
+            topicSlug: topics.slug,
+            topicCategory: topics.category,
+            topicHeatLevel: topics.heatLevel,
+            topicTotalArticles: topics.totalArticles,
+            topicTotalMedia: topics.totalMedia,
+            topicLastUpdated: topics.lastUpdated,
+            topicTags: topics.tags,
+          })
+          .from(userTopics)
+          .innerJoin(topics, eq(userTopics.topicId, topics.id))
+          .where(eq(userTopics.userId, ctx.user.id))
+          .orderBy(desc(userTopics.isPinned), desc(userTopics.createdAt));
+        return saved;
+      }),
+    // 追蹤議題
+    saveTopic: protectedProcedure
+      .input(z.object({ topicId: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("資料庫連線失敗");
+        // 檢查是否已追蹤
+        const [existing] = await db
+          .select()
+          .from(userTopics)
+          .where(and(eq(userTopics.userId, ctx.user.id), eq(userTopics.topicId, input.topicId)))
+          .limit(1);
+        if (existing) return { saved: false, message: "已追蹤此議題" };
+        await db.insert(userTopics).values({
+          userId: ctx.user.id,
+          topicId: input.topicId,
+          isPinned: 0,
+        });
+        return { saved: true, message: "追蹤成功" };
+      }),
+    // 取消追蹤議題
+    unsaveTopic: protectedProcedure
+      .input(z.object({ topicId: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("資料庫連線失敗");
+        await db
+          .delete(userTopics)
+          .where(and(eq(userTopics.userId, ctx.user.id), eq(userTopics.topicId, input.topicId)));
+        return { saved: false, message: "已取消追蹤" };
+      }),
+    // 切換釘選狀態
+    pinTopic: protectedProcedure
+      .input(z.object({ topicId: z.number().int().positive(), pin: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("資料庫連線失敗");
+        await db
+          .update(userTopics)
+          .set({ isPinned: input.pin ? 1 : 0 })
+          .where(and(eq(userTopics.userId, ctx.user.id), eq(userTopics.topicId, input.topicId)));
+        return { pinned: input.pin };
+      }),
+    // 檢查用戶是否已追蹤某議題
+    isSaved: protectedProcedure
+      .input(z.object({ topicId: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) return false;
+        const [row] = await db
+          .select({ id: userTopics.id })
+          .from(userTopics)
+          .where(and(eq(userTopics.userId, ctx.user.id), eq(userTopics.topicId, input.topicId)))
+          .limit(1);
+        return !!row;
       }),
 
     // 取得所有標籤（公開 API，供前端篩選用）

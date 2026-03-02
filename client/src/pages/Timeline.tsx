@@ -9,11 +9,14 @@ import { useState, useEffect } from 'react';
 import { useLocation, useParams } from 'wouter';
 import {
   Newspaper, Radio, ChevronDown, ChevronUp,
-  ExternalLink, Zap, ArrowLeft, BrainCircuit, Globe, Loader2, AlertCircle
+  ExternalLink, Zap, ArrowLeft, BrainCircuit, Globe, Loader2, AlertCircle,
+  Bookmark, BookmarkCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import { trpc } from '@/lib/trpc';
+import { useAuth } from '@/_core/hooks/useAuth';
+import { getLoginUrl } from '@/const';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type HeatLevel = 'extreme' | 'high' | 'medium' | 'low';
@@ -380,13 +383,37 @@ export default function Timeline() {
   const params = useParams<{ topicId: string }>();
   const slug = params.topicId ?? '';
   const [selectedPoint, setSelectedPoint] = useState<RealTurningPoint | null>(null);
-
+  const { isAuthenticated } = useAuth();
+  const utils = trpc.useUtils();
   // Fetch real timeline data from API
   const { data, isLoading, error } = trpc.topics.getTimeline.useQuery(
     { slug },
     { enabled: !!slug }
   );
-
+  const topicId = data?.topic?.id;
+  // Check if saved
+  const { data: isSaved } = trpc.topics.isSaved.useQuery(
+    { topicId: topicId! },
+    { enabled: isAuthenticated && !!topicId }
+  );
+  const saveTopic = trpc.topics.saveTopic.useMutation({
+    onSuccess: () => utils.topics.isSaved.invalidate({ topicId: topicId! }),
+  });
+  const unsaveTopic = trpc.topics.unsaveTopic.useMutation({
+    onSuccess: () => utils.topics.isSaved.invalidate({ topicId: topicId! }),
+  });
+  const handleToggleSave = () => {
+    if (!isAuthenticated) {
+      window.location.href = getLoginUrl();
+      return;
+    }
+    if (!topicId) return;
+    if (isSaved) {
+      unsaveTopic.mutate({ topicId });
+    } else {
+      saveTopic.mutate({ topicId });
+    }
+  };
   // Record view (for creator's point reward)
   const recordView = trpc.topics.recordView.useMutation();
   const [viewRecorded, setViewRecorded] = useState(false);
@@ -395,7 +422,7 @@ export default function Timeline() {
       setViewRecorded(true);
       recordView.mutate({ slug });
     }
-  }, [data?.topic?.id]);
+  }, [data?.topic?.id]);;
 
   // Loading state
   if (isLoading) {
@@ -497,25 +524,43 @@ export default function Timeline() {
               </p>
             </div>
 
-            <div className="flex items-center gap-6">
-              <div className="text-center">
-                <div className="text-2xl font-extrabold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
-                  {topic.totalArticles.toLocaleString()}
+            <div className="flex flex-col items-end gap-4">
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <div className="text-2xl font-extrabold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
+                    {topic.totalArticles.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-muted-foreground">篇報導</div>
                 </div>
-                <div className="text-xs text-muted-foreground">篇報導</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-extrabold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
-                  {topic.totalMedia}
+                <div className="text-center">
+                  <div className="text-2xl font-extrabold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
+                    {topic.totalMedia}
+                  </div>
+                  <div className="text-xs text-muted-foreground">家媒體</div>
                 </div>
-                <div className="text-xs text-muted-foreground">家媒體</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-extrabold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
-                  {turningPoints.length}
+                <div className="text-center">
+                  <div className="text-2xl font-extrabold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
+                    {turningPoints.length}
+                  </div>
+                  <div className="text-xs text-muted-foreground">個轉折點</div>
                 </div>
-                <div className="text-xs text-muted-foreground">個轉折點</div>
               </div>
+              {/* Save / Unsave button */}
+              <Button
+                onClick={handleToggleSave}
+                disabled={saveTopic.isPending || unsaveTopic.isPending}
+                variant={isSaved ? 'outline' : 'default'}
+                size="sm"
+                className={isSaved
+                  ? 'flex items-center gap-1.5 border-[#FF5A1F] text-[#FF5A1F] hover:bg-orange-50'
+                  : 'flex items-center gap-1.5 bg-[#FF5A1F] hover:bg-[#e04d18] text-white'
+                }
+              >
+                {isSaved
+                  ? <><BookmarkCheck className="w-4 h-4" />已追蹤</>
+                  : <><Bookmark className="w-4 h-4" />追蹤此議題</>
+                }
+              </Button>
             </div>
           </div>
         </div>

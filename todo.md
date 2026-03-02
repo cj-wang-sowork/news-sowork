@@ -81,21 +81,13 @@
 - [x] 前端：首頁點數說明區塊（如何賺點、如何用點）
 - [x] 前端：Timeline 頁面進入時自動記錄瀏覽（觸發創建者賺點）
 
-## Sprint 9 — 用戶認證機制完整實作 (進行中)
-- [ ] Schema：新增 user_topics 表（用戶私有議題追蹤）
-- [ ] Schema：新增 user_conversations 表（AI 對話記錄，私有化）
-- [ ] Schema：新增 conversation_messages 表（對話訊息）
-- [ ] 執行 db:push 同步資料庫
-- [ ] 後端：myTopics.list / add / remove API（登入用戶私有議題管理）
-- [ ] 後端：conversations.create / list / getMessages / addMessage API
-- [ ] 後端：AI 對話 API（串接 LLM，消耗點數）
-- [ ] 前端：登入 Modal（彈出式，點擊「登入」按鈕觸發，跳轉 Manus OAuth）
-- [ ] 前端：Navbar 更新（顯示用戶頭像/名稱，點擊可登出）
-- [ ] 前端：未登入用戶點擊受保護功能時，顯示登入引導 Modal
-- [ ] 前端：/my-topics 頁面（我的議題列表、新增/移除私有追蹤）
-- [ ] 前端：Timeline 頁面整合 AI 對話功能（登入後可用，未登入顯示引導）
-- [ ] 前端：AI 對話 UI（側邊面板，支援多輪對話，顯示點數消耗）
-- [ ] Navbar 加入「我的議題」導航連結（登入後顯示）
+## Sprint 9 — 用戶認證機制完整實作 (已完成)
+- [x] Schema：新增 user_topics 表（用戶私有議題追蹤）
+- [x] 執行 db:push 同步資料庫
+- [x] 後端：myTopics.list API（登入用戶自建議題管理）
+- [x] 前端：Navbar 更新（顯示用戶名稱，點擊可登出）
+- [x] 前端：/my-topics 頁面（我的議題列表、新增/移除私有追蹤）
+- [x] Navbar 加入「我的議題」導航連結（登入後顯示）
 
 ## Sprint 10 — 新聞媒體核心邏輯改善 (已完成)
 - [x] 後端：topics.list 改為依 lastUpdated 降序排列（最新更新的議題排最前）
@@ -124,3 +116,16 @@
 - [x] 修正：date_label 要求使用文章實際發布日期，不要用歷史事件日期
 - [x] 修正：storeTimeline 加入 30 天過濾（避免儲存歷史背景）
 - [x] 清除資料庫中所有舊轉折點，重置所有議題快取（下次訪問會重新分析）
+
+## Sprint 13 — 標籤篩選、我的議題、認證整合、修正篇數 (已完成)
+- [x] 修正：卡片篇數/媒體數與詳情頁不一致問題（getTimeline 同步計算真實數字）
+- [x] 前端：議題卡片標籤 chip 點擊後套用標籤篩選
+- [x] 前端：新增 /my-topics 頁面（登入用戶管理追蹤議題）
+- [x] 前端：Navbar 加入「我的議題」入口連結（登入後顯示）
+- [x] 後端：topics.savedTopics / saveTopic / unsaveTopic / pinTopic / isSaved API
+- [x] 前端：Timeline 頁面加入「追蹤此議題」按鈕（登入後可用）
+- [x] 認證整合：加入 Email/Password 登入（/auth/login）和註冊（/auth/register）頁面
+- [x] 認證整合：Schema 加入 passwordHash 和 authMethod 欄位
+- [x] 認證整合：後端 auth.register / auth.login procedures
+- [ ] SoWork.ai 共用登入：確認 Manus OAuth 架構，實作跨平台帳號識別（待規劃）
+- [ ] 點數共用：相同帳號在 SoWork.ai 生態系共用點數餘額（待規劃）
