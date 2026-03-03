@@ -1,15 +1,17 @@
 /*
- * Navbar — SoWork NewsFlow
+ * Navbar — 時事軸 by SoWork.ai
  * Design: Narrative Pulse | Light, minimal, brand orange accent
  * Updated: 登入狀態、建立議題入口（點數系統開發中）
  */
 
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Menu, X, Zap, LogOut, Plus, User, Bookmark, Languages, Wrench, Merge } from 'lucide-react';
+import { Menu, X, LogOut, Plus, User, Bookmark, Languages, Merge } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useI18n, type Locale } from '@/contexts/I18nContext';
+
+const SOWORK_LOGO_URL = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/sowork-favicon_b7f756fd.png';
 
 const LOCALE_LABELS: Record<Locale, string> = {
   'zh-TW': '繁中',
@@ -30,16 +32,25 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-[#FF5A1F] flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-              <Zap className="w-4 h-4 text-white fill-white" />
-            </div>
+            <img
+              src={SOWORK_LOGO_URL}
+              alt="SoWork.ai"
+              className="w-8 h-8 object-contain"
+            />
             <div className="flex flex-col leading-none">
               <span className="font-display font-800 text-[15px] text-foreground tracking-tight" style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800 }}>
-                NewsFlow
+                時事軸
               </span>
-              <span className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase" style={{ fontFamily: 'Sora, sans-serif' }}>
-                by SoWork
-              </span>
+              <a
+                href="https://tw.sowork.ai"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="text-[10px] font-medium text-muted-foreground hover:text-[#FF5A1F] tracking-widest uppercase transition-colors"
+                style={{ fontFamily: 'Sora, sans-serif' }}
+              >
+                by SoWork.ai
+              </a>
             </div>
           </Link>
 

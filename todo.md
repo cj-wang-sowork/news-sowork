@@ -284,3 +284,11 @@
 - [x] 後端：getProgress API 回傳 collectionStage 欄位
 - [x] 前端：Timeline 進度條改為分階段步驟指示器（RSS 搜尋 → Perplexity 補充 → AI 分析 → 完成）
 - [x] 前端：修正現有文字錯字「新語」→「新聞」（視覺編輯器已完成）
+
+## Sprint 44 — 品牌識別更新（SoWork.ai LOGO + 中文名稱「時事軸」）
+- [x] 上傳 SoWork.ai 橘色閃電 favicon 和白色 LOGO 到 CDN
+- [x] Navbar：更新 LOGO 為 SoWork.ai 橘色閃電圖示，產品名稱改為「時事軸」
+- [x] Navbar：加入「by SoWork.ai」副標，連結回 tw.sowork.ai
+- [x] 首頁 Footer：更新品牌名稱為「時事軸 by SoWork.ai」，加入 SoWork.ai 連結
+- [x] 更新 favicon 為 SoWork.ai 橘色閃電圖示
+- [x] 更新頁面 title 為「時事軸 by SoWork.ai — 看見新聞的演變脈絡」

@@ -636,17 +636,45 @@ export default function Home() {
       <footer className="border-t border-border bg-white">
         <div className="container py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* 品牌區 */}
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-[#FF5A1F] flex items-center justify-center">
-                <span className="text-white text-xs font-bold" style={{ fontFamily: 'Sora, sans-serif' }}>S</span>
-              </div>
-              <span className="text-sm font-semibold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>NewsFlow <span className="font-normal text-muted-foreground">by SoWork</span></span>
+              <img
+                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/sowork-favicon_b7f756fd.png"
+                alt="SoWork.ai"
+                className="w-6 h-6 object-contain"
+              />
+              <span className="text-sm font-semibold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
+                時事軸
+                <span className="font-normal text-muted-foreground"> by </span>
+                <a
+                  href="https://tw.sowork.ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#FF5A1F] hover:underline font-medium"
+                >
+                  SoWork.ai
+                </a>
+              </span>
             </div>
+            {/* 版權聲明 */}
             <p className="text-xs text-muted-foreground text-center">
-              © 2026 SoWork AI · NewsFlow. 新聞資料由 AI 自動聚合，不代表本平台立場。
+              © 2026 
+              <a href="https://tw.sowork.ai" target="_blank" rel="noopener noreferrer" className="hover:text-[#FF5A1F] transition-colors">
+                SoWork.ai
+              </a>
+               · 時事軸。新聞資料由 AI 自動聤合，不代表本平台立場。
             </p>
+            {/* 連結區 */}
             <div className="flex items-center gap-4">
-              {['關於我們', '隱私政策', '服務條款'].map(link => (
+              <a
+                href="https://tw.sowork.ai"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-foreground hover:text-[#FF5A1F] transition-colors"
+              >
+                SoWork.ai 官網
+              </a>
+              {['隱私政策', '服務條款'].map(link => (
                 <button key={link} className="text-xs text-muted-foreground hover:text-foreground transition-colors" onClick={() => alert('Feature coming soon')}>
                   {link}
                 </button>
