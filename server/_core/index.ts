@@ -9,7 +9,11 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { startScheduler } from "../scheduler";
 import { generateOgImage } from "../ogImage";
-import { getDb, getTopicBySlug } from "../db";
+import { getTopicBySlug } from "../db";
+
+// In-memory cache for OG images: slug -> { buffer, expiresAt }
+const ogImageCache = new Map<string, { buffer: Buffer; expiresAt: number }>();
+const OG_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -50,6 +54,20 @@ async function startServer() {
   app.get('/api/og/:slug', async (req, res) => {
     try {
       const { slug } = req.params;
+
+      // Check in-memory cache first
+      const cached = ogImageCache.get(slug);
+      if (cached && cached.expiresAt > Date.now()) {
+        res.set({
+          'Content-Type': 'image/png',
+          'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+          'Content-Length': cached.buffer.length,
+          'X-Cache': 'HIT',
+        });
+        res.send(cached.buffer);
+        return;
+      }
+
       const topic = await getTopicBySlug(slug);
       if (!topic) {
         res.status(404).send('Topic not found');
@@ -61,10 +79,22 @@ async function startServer() {
         articleCount: topic.totalArticles ?? 0,
         mediaCount: topic.totalMedia ?? 0,
       });
+
+      // Store in cache
+      ogImageCache.set(slug, { buffer: imageBuffer, expiresAt: Date.now() + OG_CACHE_TTL_MS });
+      // Evict stale entries if cache grows too large (max 200 entries)
+      if (ogImageCache.size > 200) {
+        const now = Date.now();
+        Array.from(ogImageCache.entries()).forEach(([key, val]) => {
+          if (val.expiresAt <= now) ogImageCache.delete(key);
+        });
+      }
+
       res.set({
         'Content-Type': 'image/png',
         'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
         'Content-Length': imageBuffer.length,
+        'X-Cache': 'MISS',
       });
       res.send(imageBuffer);
     } catch (err) {
