@@ -52,7 +52,6 @@
     "@types/sharp": "^0.32.0",
     "axios": "^1.12.0",
     "bcrypt": "^6.0.0",
-    "canvas": "^3.2.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -123,7 +122,6 @@
       "tailwindcss>nanoid": "3.3.7"
     },
     "onlyBuiltDependencies": [
-      "canvas",
       "sharp"
     ]
   }

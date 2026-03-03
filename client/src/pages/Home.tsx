@@ -561,6 +561,32 @@ export default function Home() {
         )}
       </section>
 
+      {/* SoWork.ai CTA Banner */}
+      <section className="bg-gradient-to-r from-[#FF5A1F] to-[#e04d18]">
+        <div className="container py-10">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="text-center md:text-left">
+              <p className="text-white/80 text-sm font-medium mb-1" style={{ fontFamily: 'Sora, sans-serif' }}>時事軸由 SoWork.ai 打造</p>
+              <h2 className="text-2xl md:text-3xl font-extrabold text-white leading-tight" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
+                想知道我們還做了什麼？
+              </h2>
+              <p className="text-white/80 text-sm mt-2 max-w-md">
+                SoWork.ai 打造 AI 工作工具，幫助團隊更聪明地工作。時事軸是我們的新聞智慧層。
+              </p>
+            </div>
+            <a
+              href="https://tw.sowork.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-shrink-0 flex items-center gap-2 bg-white text-[#FF5A1F] font-bold px-8 py-3.5 rounded-2xl hover:bg-orange-50 transition-all shadow-lg text-base"
+              style={{ fontFamily: 'Sora, sans-serif' }}
+            >
+              前往 SoWork.ai ↗
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Coming Soon Section */}
       <section className="bg-white border-t border-border">
         <div className="container py-14">

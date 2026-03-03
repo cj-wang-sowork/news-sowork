@@ -58,6 +58,16 @@ export default function Navbar() {
                 {t('nav.explore')}
               </Button>
             </Link>
+            {/* SoWork.ai 官網引導 */}
+            <a
+              href="https://tw.sowork.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden lg:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#FF5A1F] text-white hover:bg-[#e04d18] transition-all shadow-sm"
+              style={{ fontFamily: 'Sora, sans-serif' }}
+            >
+              了解 SoWork.ai ↗
+            </a>
             {user && (
               <>
                 <Link href="/my-topics">
@@ -165,6 +175,17 @@ export default function Navbar() {
           <Button variant="ghost" className="w-full justify-start text-sm text-muted-foreground" onClick={() => alert('Feature coming soon')}>
             訂閱追蹤
           </Button>
+          {/* SoWork.ai 官網連結（手機版） */}
+          <a
+            href="https://tw.sowork.ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#FF5A1F] text-white font-semibold text-sm mt-1"
+            onClick={() => setMenuOpen(false)}
+          >
+            <span>🔗</span>
+            了解 SoWork.ai ↗
+          </a>
 
           {user ? (
             <>

@@ -325,3 +325,8 @@
 - [x] 診斷 Perplexity 補充後文章數付只有 12 篇的原因（totalArticles 用 AI 估計值而非實際數量）
 - [x] 修復：totalArticles 改用 newsItems.length，Perplexity rawText 格式統一，重建完整 rawText
 - [x] 調整：觸發條件改為速率 < 1 或文章數 < 20，更積極觸發 Perplexity
+
+## Sprint 53 — tw.sowork.ai 引導連結 + LINE 介紹
+- [x] 首頁 footer 前加入橙色 SoWork.ai CTA Banner（全寬、白色按鈕、文字說明）
+- [x] Navbar 桌機版加入橙色圓角按鈕「了解 SoWork.ai ↗」，手機選單也加入連結
+- [x] 撰寫 LINE 分享介紹文字
