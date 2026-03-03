@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useI18n, type Locale } from '@/contexts/I18nContext';
 
-const SOWORK_LOGO_URL = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/sowork-favicon_b7f756fd.png';
+const SOWORK_LOGO_URL = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/sowork-icon-single_b50b43e6.png';
 
 const LOCALE_LABELS: Record<Locale, string> = {
   'zh-TW': '繁中',

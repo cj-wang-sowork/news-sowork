@@ -639,7 +639,7 @@ export default function Home() {
             {/* 品牌區 */}
             <div className="flex items-center gap-2">
               <img
-                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/sowork-favicon_b7f756fd.png"
+                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/sowork-icon-single_b50b43e6.png"
                 alt="SoWork.ai"
                 className="w-6 h-6 object-contain"
               />

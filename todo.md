@@ -300,3 +300,7 @@
 ## Sprint 46 — 分享功能改為 Web Share API
 - [x] 將 Timeline 的 LINE 分享按鈕改為手機原生分享（Web Share API），附上議題名稱和獨立網址
 - [x] 桌機 fallback：改為「複製連結」按鈕
+
+## Sprint 47 — 動態 OG 預覽圖生成
+- [ ] 後端：建立 /api/og/:slug endpoint，使用 canvas 動態生成含議題名稱的 OG 圖片（1200×630）
+- [ ] 前端：Timeline 頁面的 og:image 改為指向動態生成的圖片 URL
