@@ -265,3 +265,15 @@
 ## Sprint 39 — 議題去重
 - [ ] 後端：建立議題相似度檢查邏輯，防止新建重複議題
 - [ ] 清理資料庫中現有的重複議題
+
+## Sprint 40 — 協作式議題整理（拖拉合併/分割 + 學習機制）
+- [ ] schema：新增 topic_merge_signals 表（記錄用戶合併/分割行為）
+- [ ] schema：新增 topic_merge_history 表（記錄實際合併操作）
+- [ ] 後端：topics.mergeTopics procedure（合併兩個議題）
+- [ ] 後端：topics.splitTopic procedure（從議題分割出新議題）
+- [ ] 後端：topics.recordMergeSignal procedure（記錄用戶拖拉行為作為學習信號）
+- [ ] 後端：topics.getMergeSignals procedure（查看學習信號統計）
+- [ ] 前端：建立 /organize 頁面（拖拉議題卡片 UI，僅登入用戶可見）
+- [ ] 前端：拖拉到另一卡片上方 → 顯示合併確認 dialog
+- [ ] 前端：議題詳情頁加入「分割議題」按鈕（管理員/登入用戶）
+- [ ] 前端：Navbar 加入「整理議題」入口（僅登入用戶可見）

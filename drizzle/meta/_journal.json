@@ -64,6 +64,13 @@
       "when": 1772432217273,
       "tag": "0008_sleepy_dragon_man",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1772508443000,
+      "tag": "0009_little_strong_guy",
+      "breakpoints": true
     }
   ]
 }

@@ -226,3 +226,49 @@ export const topicSubscriptions = mysqlTable("topic_subscriptions", {
 
 export type TopicSubscription = typeof topicSubscriptions.$inferSelect;
 export type InsertTopicSubscription = typeof topicSubscriptions.$inferInsert;
+
+// ─── Topic Merge Signals ──────────────────────────────────────────────────────
+// 用戶拖拉行為學習信號：記錄每次用戶認為兩個議題應該合併或分開的投票
+// 系統累積這些信號，當合併票數超過門檻時自動執行合併
+export const topicMergeSignals = mysqlTable("topic_merge_signals", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  // 被拖拉的議題（來源）
+  sourceTopicId: int("sourceTopicId").notNull(),
+  // 拖拉目標議題（目標）
+  targetTopicId: int("targetTopicId").notNull(),
+  // 行為類型：merge = 建議合併, split = 建議分開
+  action: mysqlEnum("action", ["merge", "split"]).notNull(),
+  // 信心分數（1-5，預設 3，未來可讓用戶評分）
+  confidence: int("confidence").default(3).notNull(),
+  // 用戶備註（可選）
+  note: varchar("note", { length: 256 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type TopicMergeSignal = typeof topicMergeSignals.$inferSelect;
+export type InsertTopicMergeSignal = typeof topicMergeSignals.$inferInsert;
+
+// ─── Topic Merge History ──────────────────────────────────────────────────────
+// 實際執行過的合併/分割操作記錄（可追溯、可復原）
+export const topicMergeHistory = mysqlTable("topic_merge_history", {
+  id: int("id").autoincrement().primaryKey(),
+  // 操作類型
+  action: mysqlEnum("action", ["merge", "split"]).notNull(),
+  // 合併：sourceTopicId 被合併進 targetTopicId（source 被刪除）
+  // 分割：sourceTopicId 被分割，新議題 ID 存在 resultTopicId
+  sourceTopicId: int("sourceTopicId").notNull(),
+  targetTopicId: int("targetTopicId"),
+  // 分割後新建的議題 ID
+  resultTopicId: int("resultTopicId"),
+  // 執行者（用戶 ID，null = 系統自動執行）
+  executedByUserId: int("executedByUserId"),
+  // 觸發此操作的信號數量（0 = 手動執行）
+  signalCount: int("signalCount").default(0).notNull(),
+  // 備份：被刪除議題的原始 query（方便追溯）
+  sourceTopicQuery: varchar("sourceTopicQuery", { length: 256 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type TopicMergeHistory = typeof topicMergeHistory.$inferSelect;
+export type InsertTopicMergeHistory = typeof topicMergeHistory.$inferInsert;

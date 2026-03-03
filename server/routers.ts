@@ -22,6 +22,9 @@ import {
   topicViews,
   userTopics,
   rssSources,
+  topicMergeSignals,
+  topicMergeHistory,
+  turningPoints,
 } from "../drizzle/schema";
 import { like, desc, sql, eq, and, gte } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -870,6 +873,180 @@ ${input.currentContent}
           }
         }
         return { results, successCount: results.filter(r => r.success).length };
+      }),
+  }),
+
+  // ─── Organize (Merge / Split / Learn) ────────────────────────────────────────────────
+  organize: router({
+    // 記錄用戶拖拉行為（學習信號）
+    recordSignal: protectedProcedure
+      .input(z.object({
+        sourceTopicId: z.number().int().positive(),
+        targetTopicId: z.number().int().positive(),
+        action: z.enum(['merge', 'split']),
+        confidence: z.number().int().min(1).max(5).default(3),
+        note: z.string().max(256).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error('資料庫連線失敗');
+        // 防止同一用戶重複投票（同一對議題對已有信號則更新）
+        const [existing] = await db
+          .select()
+          .from(topicMergeSignals)
+          .where(and(
+            eq(topicMergeSignals.userId, ctx.user.id),
+            eq(topicMergeSignals.sourceTopicId, input.sourceTopicId),
+            eq(topicMergeSignals.targetTopicId, input.targetTopicId),
+          ))
+          .limit(1);
+        if (existing) {
+          await db.update(topicMergeSignals)
+            .set({ action: input.action, confidence: input.confidence, note: input.note ?? null })
+            .where(eq(topicMergeSignals.id, existing.id));
+          return { success: true, updated: true };
+        }
+        await db.insert(topicMergeSignals).values({
+          userId: ctx.user.id,
+          sourceTopicId: input.sourceTopicId,
+          targetTopicId: input.targetTopicId,
+          action: input.action,
+          confidence: input.confidence,
+          note: input.note ?? null,
+        });
+        return { success: true, updated: false };
+      }),
+
+    // 查看兩個議題之間的學習信號統計
+    getSignalStats: publicProcedure
+      .input(z.object({
+        topicIdA: z.number().int().positive(),
+        topicIdB: z.number().int().positive(),
+      }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { mergeVotes: 0, splitVotes: 0, totalVotes: 0 };
+        const signals = await db
+          .select()
+          .from(topicMergeSignals)
+          .where(sql`(
+            (${topicMergeSignals.sourceTopicId} = ${input.topicIdA} AND ${topicMergeSignals.targetTopicId} = ${input.topicIdB})
+            OR
+            (${topicMergeSignals.sourceTopicId} = ${input.topicIdB} AND ${topicMergeSignals.targetTopicId} = ${input.topicIdA})
+          )`);
+        const mergeVotes = signals.filter(s => s.action === 'merge').reduce((sum, s) => sum + s.confidence, 0);
+        const splitVotes = signals.filter(s => s.action === 'split').reduce((sum, s) => sum + s.confidence, 0);
+        return { mergeVotes, splitVotes, totalVotes: signals.length };
+      }),
+
+    // 學習信號列表（合併票數最多的前 20 對）
+    getTopSignals: publicProcedure
+      .input(z.object({ limit: z.number().int().min(1).max(50).default(20) }).optional())
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const signals = await db
+          .select({
+            sourceTopicId: topicMergeSignals.sourceTopicId,
+            targetTopicId: topicMergeSignals.targetTopicId,
+            action: topicMergeSignals.action,
+            voteCount: sql<number>`COUNT(*)`,
+            totalConfidence: sql<number>`SUM(${topicMergeSignals.confidence})`,
+          })
+          .from(topicMergeSignals)
+          .groupBy(topicMergeSignals.sourceTopicId, topicMergeSignals.targetTopicId, topicMergeSignals.action)
+          .orderBy(desc(sql`SUM(${topicMergeSignals.confidence})`))
+          .limit(input?.limit ?? 20);
+        return signals;
+      }),
+
+    // 實際執行合併（保留 targetTopic，將 sourceTopic 的轉折點和文章移轉過去，再刪除 sourceTopic）
+    mergeTopics: protectedProcedure
+      .input(z.object({
+        sourceTopicId: z.number().int().positive(), // 被合併掉的議題
+        targetTopicId: z.number().int().positive(), // 保留的議題
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error('資料庫連線失敗');
+        if (input.sourceTopicId === input.targetTopicId) throw new Error('不能合併相同議題');
+        // 查詢兩個議題
+        const [source] = await db.select().from(topics).where(eq(topics.id, input.sourceTopicId)).limit(1);
+        const [target] = await db.select().from(topics).where(eq(topics.id, input.targetTopicId)).limit(1);
+        if (!source || !target) throw new Error('議題不存在');
+        // 移轉轉折點
+        await db.update(turningPoints)
+          .set({ topicId: input.targetTopicId })
+          .where(eq(turningPoints.topicId, input.sourceTopicId));
+        // 移轉文章
+        await db.update(newsArticles)
+          .set({ topicId: input.targetTopicId })
+          .where(eq(newsArticles.topicId, input.sourceTopicId));
+        // 記錄合併歷史
+        await db.insert(topicMergeHistory).values({
+          action: 'merge',
+          sourceTopicId: input.sourceTopicId,
+          targetTopicId: input.targetTopicId,
+          executedByUserId: ctx.user.id,
+          signalCount: 0,
+          sourceTopicQuery: source.query,
+        });
+        // 刪除 source 議題
+        await db.delete(topics).where(eq(topics.id, input.sourceTopicId));
+        return { success: true, mergedInto: target.slug, targetQuery: target.query };
+      }),
+
+    // 分割護題：將指定轉折點分割成新議題
+    splitTopic: protectedProcedure
+      .input(z.object({
+        sourceTopicId: z.number().int().positive(),
+        turningPointIds: z.array(z.number().int().positive()).min(1), // 要分割出去的轉折點 IDs
+        newTopicQuery: z.string().min(1).max(256), // 新議題的名稱
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error('資料庫連線失敗');
+        const [source] = await db.select().from(topics).where(eq(topics.id, input.sourceTopicId)).limit(1);
+        if (!source) throw new Error('議題不存在');
+        // 建立新議題
+        const newSlug = `split-${Date.now()}`;
+        await db.insert(topics).values({
+          slug: newSlug,
+          query: input.newTopicQuery,
+          heatLevel: 'medium',
+          trendDirection: 'stable',
+        });
+        const [newTopic] = await db.select().from(topics).where(eq(topics.slug, newSlug)).limit(1);
+        if (!newTopic) throw new Error('建立新議題失敗');
+        // 移轉指定轉折點到新議題
+        for (const tpId of input.turningPointIds) {
+          await db.update(turningPoints)
+            .set({ topicId: newTopic.id })
+            .where(and(eq(turningPoints.id, tpId), eq(turningPoints.topicId, input.sourceTopicId)));
+        }
+        // 記錄分割歷史
+        await db.insert(topicMergeHistory).values({
+          action: 'split',
+          sourceTopicId: input.sourceTopicId,
+          resultTopicId: newTopic.id,
+          executedByUserId: ctx.user.id,
+          signalCount: 0,
+          sourceTopicQuery: source.query,
+        });
+        return { success: true, newTopicSlug: newSlug, newTopicId: newTopic.id };
+      }),
+
+    // 操作歷史記錄
+    getHistory: protectedProcedure
+      .input(z.object({ limit: z.number().int().min(1).max(50).default(20) }).optional())
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        return db
+          .select()
+          .from(topicMergeHistory)
+          .orderBy(desc(topicMergeHistory.createdAt))
+          .limit(input?.limit ?? 20);
       }),
   }),
 });

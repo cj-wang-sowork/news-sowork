@@ -12,6 +12,7 @@ import Timeline from './pages/Timeline';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import MyTopics from './pages/MyTopics';
+import Organize from './pages/Organize';
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -25,6 +26,7 @@ function Router() {
       <Route path={"/admin/seed-topics"} component={AdminSeedTopics} />
       <Route path={"/create-topic"} component={CreateTopic} />
       <Route path="/my-topics" component={MyTopics} />
+      <Route path="/organize" component={Organize} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

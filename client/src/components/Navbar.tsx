@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Menu, X, Zap, LogOut, Plus, User, Bookmark, Languages, Wrench } from 'lucide-react';
+import { Menu, X, Zap, LogOut, Plus, User, Bookmark, Languages, Wrench, Merge } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useI18n, type Locale } from '@/contexts/I18nContext';
@@ -51,12 +51,20 @@ export default function Navbar() {
               </Button>
             </Link>
             {user && (
-              <Link href="/my-topics">
-                <Button variant="ghost" size="sm" className={`text-sm font-medium flex items-center gap-1.5 ${location === '/my-topics' ? 'text-[#FF5A1F]' : 'text-muted-foreground hover:text-foreground'}`}>
-                  <Bookmark className="w-3.5 h-3.5" />
-                  我的議題
-                </Button>
-              </Link>
+              <>
+                <Link href="/my-topics">
+                  <Button variant="ghost" size="sm" className={`text-sm font-medium flex items-center gap-1.5 ${location === '/my-topics' ? 'text-[#FF5A1F]' : 'text-muted-foreground hover:text-foreground'}`}>
+                    <Bookmark className="w-3.5 h-3.5" />
+                    我的議題
+                  </Button>
+                </Link>
+                <Link href="/organize">
+                  <Button variant="ghost" size="sm" className={`text-sm font-medium flex items-center gap-1.5 ${location === '/organize' ? 'text-[#FF5A1F]' : 'text-muted-foreground hover:text-foreground'}`}>
+                    <Merge className="w-3.5 h-3.5" />
+                    整理議題
+                  </Button>
+                </Link>
+              </>
             )}
           </nav>
 
@@ -163,6 +171,12 @@ export default function Navbar() {
                 <Button variant="ghost" className="w-full justify-start text-sm">
                   <Bookmark className="w-4 h-4 mr-2" />
                   我的議題
+                </Button>
+              </Link>
+              <Link href="/organize" onClick={() => setMenuOpen(false)}>
+                <Button variant="ghost" className="w-full justify-start text-sm">
+                  <Merge className="w-4 h-4 mr-2" />
+                  整理議題
                 </Button>
               </Link>
               <Link href="/create-topic" onClick={() => setMenuOpen(false)}>
