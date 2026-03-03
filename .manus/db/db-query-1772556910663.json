@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM news_articles WHERE topicId = (SELECT id FROM topics WHERE query LIKE '%包租代管%' LIMIT 1);\nDELETE FROM turning_points WHERE topicId = (SELECT id FROM topics WHERE query LIKE '%包租代管%' LIMIT 1);\nDELETE FROM topics WHERE query LIKE '%包租代管%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute DELETE FROM news_articles WHERE topicId = (SELECT id FROM topics WHERE query LIKE '%包租代管%' LIMIT 1);\nDELETE FROM turning_points WHERE topicId = (SELECT id FROM topics WHERE query LIKE '%包租代管%' LIMIT 1);\nDELETE FROM topics WHERE query LIKE '%包租代管%';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2039
+}

@@ -1,0 +1,8 @@
+{
+  "query": "SELECT t.id, t.query, t.slug, t.totalArticles, COUNT(na.id) as actual_articles FROM topics t LEFT JOIN newsArticles na ON na.topicId = t.id GROUP BY t.id ORDER BY t.lastUpdated DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT t.id, t.query, t.slug, t.totalArticles, COUNT(na.id) as actual_articles FROM topics t LEFT JOIN newsArticles na ON na.topicId = t.id GROUP BY t.id ORDER BY t.lastUpdated DESC LIMIT 10;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1146 (42S02) at line 1: Table 'e62q4utoyfc8bujjv96dsp.newsArticles' doesn't exist"
+  ]
+}

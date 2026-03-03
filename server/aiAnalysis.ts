@@ -207,21 +207,89 @@ export async function searchGoogleNews(query: string, targetCount = 50): Promise
   queryVariants.add(query);
   queryVariants.add(`${query} 新聞`);
   queryVariants.add(`${query} 最新`);
+  queryVariants.add(`${query} 事件`);
   if (isLocal) {
     // 台灣在地：加強台灣地域限定
     if (!query.includes('台灣') && !query.includes('Taiwan')) {
       queryVariants.add(`${query} 台灣`);
       queryVariants.add(`${query} 台灣 新聞`);
     }
-    queryVariants.add(`${query} 事件`);
+    queryVariants.add(`${query} 政策`);
+    queryVariants.add(`${query} 報導`);
   } else {
     // 全球：加入英文變體
     queryVariants.add(query.length <= 20 ? query : query.slice(0, 20));
-    queryVariants.add(`${query} 事件`);
+    queryVariants.add(`${query} 分析`);
   }
 
   const allItems: NewsItem[] = [];
 
+  // ── 台灣主要媒體直接 RSS feed（不經 Google News 轉址）──
+  // 這些 feed 提供真實文章 URL，品質更高
+  const TAIWAN_MEDIA_RSS: Array<{ name: string; url: string; queryParam: string }> = [
+    // 聯合新聞網 — 全站最新
+    { name: '聯合新聞網', url: 'https://udn.com/rssfeed/news/2/0?ch=news', queryParam: '' },
+    // 自由時報 — 即時新聞
+    { name: '自由時報', url: 'https://news.ltn.com.tw/rss/all.xml', queryParam: '' },
+    // 中時電子報 — 即時新聞
+    { name: '中時電子報', url: 'https://www.chinatimes.com/rss/realtime.xml', queryParam: '' },
+    // ETtoday 新聞雲
+    { name: 'ETtoday', url: 'https://feeds.feedburner.com/ettoday/realtime', queryParam: '' },
+    // 三立新聞網
+    { name: '三立新聞', url: 'https://www.setn.com/rss.aspx', queryParam: '' },
+    // TVBS 新聞
+    { name: 'TVBS', url: 'https://news.tvbs.com.tw/rss/news', queryParam: '' },
+    // 民視新聞
+    { name: '民視', url: 'https://www.ftvnews.com.tw/rss/news', queryParam: '' },
+    // 商業周刊
+    { name: '商業周刊', url: 'https://www.businessweekly.com.tw/rss/all', queryParam: '' },
+    // 天下雜誌
+    { name: '天下雜誌', url: 'https://www.cw.com.tw/rss/news.xml', queryParam: '' },
+    // 風傳媒
+    { name: '風傳媒', url: 'https://www.storm.mg/rss/1', queryParam: '' },
+    // 關鍵評論網
+    { name: '關鍵評論網', url: 'https://www.thenewslens.com/rss', queryParam: '' },
+    // 上報
+    { name: '上報', url: 'https://www.upmedia.mg/rss.php', queryParam: '' },
+    // 鏡週刊
+    { name: '鏡週刊', url: 'https://www.mirrormedia.mg/rss/news.rss', queryParam: '' },
+    // 蘋果新聞網
+    { name: '蘋果新聞', url: 'https://tw.nextapple.com/rss/index.xml', queryParam: '' },
+    // 中央社
+    { name: '中央社', url: 'https://feeds.feedburner.com/cna-realtime', queryParam: '' },
+  ];
+
+  // 先從台灣媒體直接 RSS 抓取，過濾包含查詢關鍵字的文章
+  const queryKeywords = query.split(/\s+/).filter(k => k.length >= 2);
+  const mediaFetchPromises = TAIWAN_MEDIA_RSS.map(async (media) => {
+    try {
+      const resp = await fetch(media.url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NewsFlowBot/1.0)' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!resp.ok) return [];
+      const xml = await resp.text();
+      const items = parseRssXml(xml);
+      // 過濾包含查詢關鍵字的文章（標題或描述中包含任一關鍵字）
+      const relevant = items.filter(item => {
+        const text = `${item.title} ${item.description}`.toLowerCase();
+        return queryKeywords.some(kw => text.includes(kw.toLowerCase()));
+      });
+      if (relevant.length > 0) {
+        console.log(`[MediaRSS] ${media.name}: ${relevant.length} relevant articles`);
+      }
+      return relevant;
+    } catch {
+      return [];
+    }
+  });
+  const mediaResults = await Promise.all(mediaFetchPromises);
+  for (const items of mediaResults) {
+    allItems.push(...items);
+  }
+  console.log(`[GoogleNews] Direct media RSS: ${allItems.length} articles before Google News search`);
+
+  // 再用 Google News RSS 搜尋（補充更多文章）
   for (const q of Array.from(queryVariants)) {
     if (allItems.length >= targetCount * 3) break;
     const encodedQuery = encodeURIComponent(`${q} after:${afterDate}`);
@@ -272,9 +340,9 @@ export async function searchGoogleNews(query: string, targetCount = 50): Promise
 
   const top = deduped.slice(0, Math.max(targetCount, 50));
 
-  // Build raw text summary for LLM
+  // Build raw text summary for LLM (包含 URL 讓 AI 能引用真實連結)
   const rawText = top
-    .map((item, i) => `[${i + 1}] ${item.publishedAt} — ${item.source}\n標題: ${item.title}\n摘要: ${item.description}`)
+    .map((item, i) => `[${i + 1}] ${item.publishedAt} — ${item.source} — URL: ${item.url}\n標題: ${item.title}\n摘要: ${item.description}`)
     .join("\n\n");
 
   console.log(`[GoogleNews] Found ${top.length} articles (target: ${targetCount}) for query: "${query}"`);
@@ -492,11 +560,50 @@ function parseDateFromLabel(dateLabel: string): Date {
 // ─── Store Timeline in Database (增量新增，不清除舊轉折點) ─────────────────────
 async function storeTimeline(
   topicId: number,
-  turningPointsData: TurningPointData[]
+  turningPointsData: TurningPointData[],
+  newsItems: NewsItem[] = []
 ): Promise<void> {
   const db = await getDb();
   if (!db) return;
 
+  // ── Step A: 先將所有 newsItems 存入 newsArticles 表（不帶 turningPointId）──
+  // 這樣所有文章都會被儲存，後續再用 source_urls 對映到轉折點
+  const urlToArticleId = new Map<string, number>(); // url -> newsArticle.id
+  const existingArticleUrls = new Set(
+    (await db.select({ url: newsArticles.url }).from(newsArticles).where(eq(newsArticles.topicId, topicId)))
+      .map(r => r.url)
+  );
+
+  for (const item of newsItems) {
+    if (!item.url) continue;
+    if (existingArticleUrls.has(item.url)) {
+      // 已存在：查詢其 ID
+      const existing = await db.select({ id: newsArticles.id }).from(newsArticles)
+        .where(eq(newsArticles.url, item.url)).limit(1);
+      if (existing[0]) urlToArticleId.set(item.url, existing[0].id);
+      continue;
+    }
+    try {
+      await db.insert(newsArticles).values({
+        title: item.title,
+        url: item.url,
+        source: item.source || extractDomain(item.url),
+        publishedAt: new Date(item.publishedAt),
+        topicId,
+        language: 'zh-TW',
+      });
+      // 取得剛插入的 ID
+      const [inserted] = await db.select({ id: newsArticles.id }).from(newsArticles)
+        .where(eq(newsArticles.url, item.url)).limit(1);
+      if (inserted) urlToArticleId.set(item.url, inserted.id);
+      existingArticleUrls.add(item.url);
+    } catch {
+      // Ignore duplicate URL errors
+    }
+  }
+  console.log(`[storeTimeline] Stored/mapped ${urlToArticleId.size} articles for topic ${topicId}`);
+
+  // ── Step B: 儲存轉折點，並用 source_urls 對映到實際 newsArticle ──
   // 取得現有轉折點標題，用於去重
   const existingTPs = await db
     .select({ title: turningPoints.title, dateLabel: turningPoints.dateLabel })
@@ -559,24 +666,37 @@ async function storeTimeline(
       .limit(1);
     if (!latestTP) continue;
 
-    // 儲存來源文章
-    const sourceUrls = point.source_urls.slice(0, 3);
+    // 用 source_urls 對映到實際 newsArticle，設定 turningPointId
+    const sourceUrls = point.source_urls.slice(0, 5); // 最多 5 個代表性來源
+    let linkedCount = 0;
     for (const url of sourceUrls) {
       if (!url || url.length < 10) continue;
-      try {
-        await db.insert(newsArticles).values({
-          title: `${point.title} — 相關報導`,
-          url,
-          source: extractDomain(url),
-          publishedAt: eventDate,
-          topicId,
-          turningPointId: latestTP.id,
-          language: "zh-TW",
-        });
-      } catch {
-        // Ignore duplicate URL errors
+      const articleId = urlToArticleId.get(url);
+      if (articleId) {
+        // 對映到實際文章：更新 turningPointId
+        try {
+          await db.update(newsArticles)
+            .set({ turningPointId: latestTP.id })
+            .where(eq(newsArticles.id, articleId));
+          linkedCount++;
+        } catch { /* ignore */ }
+      } else {
+        // URL 不在 newsItems 中（AI 可能引用了真實 URL）：直接存入
+        try {
+          await db.insert(newsArticles).values({
+            title: `${point.title} — 相關報導`,
+            url,
+            source: extractDomain(url),
+            publishedAt: eventDate,
+            topicId,
+            turningPointId: latestTP.id,
+            language: 'zh-TW',
+          });
+          linkedCount++;
+        } catch { /* ignore */ }
       }
     }
+    console.log(`[storeTimeline] Turning point "${point.title}": linked ${linkedCount} articles`);
 
     // 更新去重集合
     existingTitles.add(point.title);
@@ -779,9 +899,9 @@ export async function buildTopicTimeline(query: string): Promise<{
       const newItems = allPerplexityItems.filter(i => i.url && !existingUrls.has(i.url));
       newsItems = [...rssItems, ...newItems];
       console.log(`[Timeline] After merge: ${newsItems.length} articles (${rssItems.length} RSS + ${newItems.length} Perplexity)`);
-      // 重建完整 rawText：將所有文章統一格式，方便 AI 分析
+      // 重建完整 rawText：將所有文章統一格式，包含 URL 讓 AI 能引用真實連結
       rawText = newsItems
-        .map((item, i) => `[${i + 1}] ${item.publishedAt} — ${item.source}\n標題: ${item.title}\n摘要: ${item.description}`)
+        .map((item, i) => `[${i + 1}] ${item.publishedAt} — ${item.source} — URL: ${item.url}\n標題: ${item.title}\n摘要: ${item.description}`)
         .join('\n\n');
     }
   }
@@ -831,7 +951,7 @@ export async function buildTopicTimeline(query: string): Promise<{
     .where(eq(topics.id, topic.id));
 
   // Step 6: Store timeline in DB
-  await storeTimeline(topic.id, turningPointsData);
+  await storeTimeline(topic.id, turningPointsData, newsItems);
 
   // Step 7: Return complete timeline
   const tpList = await db

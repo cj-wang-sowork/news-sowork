@@ -877,6 +877,12 @@ export default function Timeline() {
     { enabled: !!slug }
   );
   const topicId = data?.topic?.id;
+  // 取得議題下所有文章
+  const { data: allArticles } = trpc.topics.getTopicArticles.useQuery(
+    { topicId: topicId! },
+    { enabled: !!topicId }
+  );
+  const [showAllArticles, setShowAllArticles] = useState(false);
   // Check if saved
   const { data: isSaved } = trpc.topics.isSaved.useQuery(
     { topicId: topicId! },
@@ -1285,6 +1291,62 @@ export default function Timeline() {
           </div>
         )}
       </div>
+
+      {/* 全部新聞來源區塊 */}
+      {allArticles && allArticles.length > 0 && (
+        <div className="container pb-12">
+          <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+            <button
+              onClick={() => setShowAllArticles(!showAllArticles)}
+              className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Newspaper className="w-4 h-4 text-[#FF5A1F]" />
+                <span className="font-bold text-foreground" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
+                  全部新聞來源
+                </span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-[#FFF0EB] text-[#FF5A1F] font-semibold">
+                  {allArticles.length} 篇
+                </span>
+              </div>
+              {showAllArticles ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            </button>
+
+            {showAllArticles && (
+              <div className="border-t border-border">
+                <div className="divide-y divide-border">
+                  {allArticles.map((article, idx) => (
+                    <a
+                      key={article.id}
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group"
+                    >
+                      <span className="text-xs text-muted-foreground font-mono w-6 flex-shrink-0 mt-0.5">{idx + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground leading-snug group-hover:text-[#FF5A1F] transition-colors line-clamp-2">
+                          {article.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-muted-foreground">{article.source}</span>
+                          {article.publishedAt && (
+                            <span className="text-xs text-muted-foreground">{article.publishedAt}</span>
+                          )}
+                          {article.turningPointId && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-[#FFF0EB] text-[#FF5A1F] font-medium">轉折點來源</span>
+                          )}
+                        </div>
+                      </div>
+                      <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* AI Response Panel */}
       {selectedPoint && (

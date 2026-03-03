@@ -1,0 +1,52 @@
+{
+  "query": "SHOW TABLES;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SHOW TABLES;",
+  "rows": [
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "__drizzle_migrations"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "conversation_messages"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "news_articles"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "point_transactions"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "rss_sources"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "topic_merge_history"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "topic_merge_signals"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "topic_subscriptions"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "topic_views"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "topics"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "turning_points"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "user_conversations"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "user_topics"
+    },
+    {
+      "Tables_in_e62Q4utoyfc8BuJjv96dsP": "users"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_e62Q4utoyfc8BuJjv96dsP\n__drizzle_migrations\nconversation_messages\nnews_articles\npoint_transactions\nrss_sources\ntopic_merge_history\ntopic_merge_signals\ntopic_subscriptions\ntopic_views\ntopics\nturning_points\nuser_conversations\nuser_topics\nusers\n",
+  "stderr": "",
+  "execution_time_ms": 1564
+}

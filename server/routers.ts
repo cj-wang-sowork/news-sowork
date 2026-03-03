@@ -320,7 +320,37 @@ export const appRouter = router({
         }
         return { topic, turningPoints: turningPointsWithNews };
       }),
-    // 瀏覽議題題：記錄瀏覽次數，並為創建者賺點（24h 去重）
+    // 取得議題下所有新聞文章（用於前端顯示全部來源）
+    getTopicArticles: publicProcedure
+      .input(z.object({ topicId: z.number(), limit: z.number().default(200) }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const articles = await db
+          .select({
+            id: newsArticles.id,
+            title: newsArticles.title,
+            url: newsArticles.url,
+            source: newsArticles.source,
+            publishedAt: newsArticles.publishedAt,
+            turningPointId: newsArticles.turningPointId,
+            language: newsArticles.language,
+          })
+          .from(newsArticles)
+          .where(eq(newsArticles.topicId, input.topicId))
+          .orderBy(desc(newsArticles.publishedAt))
+          .limit(input.limit);
+        return articles.map(a => ({
+          id: a.id,
+          title: a.title,
+          url: a.url,
+          source: a.source,
+          publishedAt: a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' }) : '',
+          turningPointId: a.turningPointId,
+          language: a.language,
+        }));
+      }),
+    // 瀏覽議題題：記錄瀏覽次數，並為創建者荥點（24h 去重）
     recordView: publicProcedure
       .input(z.object({ slug: z.string() }))
       .mutation(async ({ ctx, input }) => {

@@ -1,0 +1,15 @@
+{
+  "query": "SELECT id, slug, query FROM topics WHERE query LIKE '%包租%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT id, slug, query FROM topics WHERE query LIKE '%包租%';",
+  "rows": [
+    {
+      "id": "210001",
+      "slug": "530579df4ee37ba1-1772540650033",
+      "query": "包租代管政策"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tslug\tquery\n210001\t530579df4ee37ba1-1772540650033\t包租代管政策\n",
+  "stderr": "",
+  "execution_time_ms": 1584
+}
