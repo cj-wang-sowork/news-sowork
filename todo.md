@@ -297,6 +297,7 @@
 - [x] 修復 Navbar：Link 內嵌 a 標籤（by SoWork.ai 連結）導致 React `<a> cannot contain a nested <a>` 錯誤
 - [x] 修復 Timeline：「持續追蹤中...」結尾圓點置中問題，改為對齊左側時間軸
 
+<<<<<<< Updated upstream
 ## Sprint 46 — 分享功能改為 Web Share API
 - [x] 將 Timeline 的 LINE 分享按鈕改為手機原生分享（Web Share API），附上議題名稱和獨立網址
 - [x] 桌機 fallback：改為「複製連結」按鈕
@@ -324,3 +325,8 @@
 - [ ] 後端：增加查詢變體（加「最新」「事件」）
 - [ ] 後端：Perplexity 要求回傳 20-30 篇，加入第二輪英文搜尋
 - [x] 前端：將「收起報導」改為「重點新聞來源」
+=======
+## Sprint 51 — 修復手機分享 + 增加 Perplexity 數量
+- [x] 修復手機分享按鈕（將 LINE 連結改為 Web Share API 按鈕，手機觸發原生分享選單，桌機 fallback 複製連結）
+- [x] 增加 Perplexity 每輪回傳文章數量（30-50 篇），加入第二輪英文搜尋，修復速率觸發邏輪
+>>>>>>> Stashed changes

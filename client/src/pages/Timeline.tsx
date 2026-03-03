@@ -868,6 +868,7 @@ export default function Timeline() {
   const slug = params.topicId ?? '';
   const [selectedPoint, setSelectedPoint] = useState<RealTurningPoint | null>(null);
   const [aiAutoOpened, setAiAutoOpened] = useState(false);
+  const [pageShareCopied, setPageShareCopied] = useState(false);
   const { isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
   // Fetch real timeline data from API

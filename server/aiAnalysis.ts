@@ -38,13 +38,13 @@ async function searchWithPerplexity(query: string): Promise<NewsItem[]> {
           },
           {
             role: 'user',
-            content: `Find recent news articles (last 30 days) about: "${query}". Return a JSON array with objects having these fields: title (string, in the original language), url (string, must be a real URL), source (string, news outlet name), publishedAt (ISO date string), description (string, 1-2 sentence summary). Return 20-30 articles covering different angles and sources. Only return the JSON array, nothing else.`,
+            content: `Find recent news articles (last 30 days) about: "${query}". Return a JSON array with objects having these fields: title (string, in the original language), url (string, must be a real URL), source (string, news outlet name), publishedAt (ISO date string), description (string, 1-2 sentence summary). Return AT LEAST 30 articles, up to 50 if available. Include articles from diverse sources (different countries, languages, media outlets). Only return the JSON array, nothing else.`,
           },
         ],
         return_citations: true,
         search_recency_filter: 'month',
       }),
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(30000),
     });
     if (!resp.ok) {
       console.warn(`[Perplexity] API error: ${resp.status}`);
@@ -733,14 +733,14 @@ export async function buildTopicTimeline(query: string): Promise<{
   console.log(`[Timeline] Searching Google News for: "${searchQuery}"`);
   const rssStartTime = Date.now();
   const { items: rssItems, rawText: rssRawText } = await searchGoogleNews(searchQuery);
-  const rssElapsedSec = (Date.now() - rssStartTime) / 1000;
-  const rssRate = rssElapsedSec > 0 ? rssItems.length / rssElapsedSec : rssItems.length;
+  const rssElapsedSec = Math.max((Date.now() - rssStartTime) / 1000, 0.1);
+  const rssRate = rssItems.length / rssElapsedSec;
   console.log(`[Timeline] RSS: ${rssItems.length} articles in ${rssElapsedSec.toFixed(1)}s (rate: ${rssRate.toFixed(1)} articles/sec)`);
 
-  // 補充搜尋：速率 < 1 篇/秒（即文章數量少於搜尋耗時秒數）即觸發 Perplexity
+  // 補充搜尋：速率 < 1 篇/秒即觸發 Perplexity（表示文章數量少於搜尋耗時秒數）
   let newsItems = rssItems;
   let rawText = rssRawText;
-  const shouldTriggerPerplexity = rssRate < 1.0; // 每秒少於 1 篇就補充
+  const shouldTriggerPerplexity = rssRate < 1.0;
   if (shouldTriggerPerplexity) {
     // 階段更新：Perplexity 補充搜尋中
     await db.update(topics).set({ collectionStage: 'perplexity_searching' }).where(eq(topics.id, topic.id));
