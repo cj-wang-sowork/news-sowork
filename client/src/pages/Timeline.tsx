@@ -181,7 +181,7 @@ function TurningPointCard({
               className="flex items-center gap-1.5 text-xs font-semibold text-[#FF5A1F] hover:text-[#e04d18] transition-colors mb-2"
             >
               {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              {expanded ? '收起報導' : `展開 ${point.news.length} 篇相關報導`}
+              {expanded ? '收起' : `重點新聞來源（${point.news.length} 篇）`}
             </button>
 
             {expanded && (

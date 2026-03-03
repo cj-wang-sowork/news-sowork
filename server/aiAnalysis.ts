@@ -38,7 +38,7 @@ async function searchWithPerplexity(query: string): Promise<NewsItem[]> {
           },
           {
             role: 'user',
-            content: `Find recent news articles (last 30 days) about: "${query}". Return a JSON array with objects having these fields: title (string, in the original language), url (string), source (string, news outlet name), publishedAt (ISO date string), description (string, 1-2 sentence summary). Return 10-20 articles. Only return the JSON array, nothing else.`,
+            content: `Find recent news articles (last 30 days) about: "${query}". Return a JSON array with objects having these fields: title (string, in the original language), url (string, must be a real URL), source (string, news outlet name), publishedAt (ISO date string), description (string, 1-2 sentence summary). Return 20-30 articles covering different angles and sources. Only return the JSON array, nothing else.`,
           },
         ],
         return_citations: true,
@@ -206,31 +206,37 @@ export async function searchGoogleNews(query: string, targetCount = 50): Promise
   const queryVariants = new Set<string>();
   queryVariants.add(query);
   queryVariants.add(`${query} 新聞`);
+  queryVariants.add(`${query} 最新`);
   if (isLocal) {
     // 台灣在地：加強台灣地域限定
     if (!query.includes('台灣') && !query.includes('Taiwan')) {
       queryVariants.add(`${query} 台灣`);
+      queryVariants.add(`${query} 台灣 新聞`);
     }
+    queryVariants.add(`${query} 事件`);
   } else {
     // 全球：加入英文變體
     queryVariants.add(query.length <= 20 ? query : query.slice(0, 20));
+    queryVariants.add(`${query} 事件`);
   }
 
   const allItems: NewsItem[] = [];
 
   for (const q of Array.from(queryVariants)) {
-    if (allItems.length >= targetCount * 2) break;
+    if (allItems.length >= targetCount * 3) break;
     const encodedQuery = encodeURIComponent(`${q} after:${afterDate}`);
 
-    // 台灣在地：只搜台灣 feed；全球：搜台灣+香港+英文
+    // 台灣在地：搜台灣+香港；全球：搜台灣+香港+英文
     const feeds = isLocal
       ? [
           `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`,
+          `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-TW&gl=HK&ceid=HK:zh-Hant`,
         ]
       : [
           `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`,
           `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-TW&gl=HK&ceid=HK:zh-Hant`,
           `https://news.google.com/rss/search?q=${encodedQuery}&hl=en-US&gl=US&ceid=US:en`,
+          `https://news.google.com/rss/search?q=${encodedQuery}&hl=zh-CN&gl=CN&ceid=CN:zh-Hans`,
         ];
 
     for (const feedUrl of feeds) {
@@ -725,21 +731,30 @@ export async function buildTopicTimeline(query: string): Promise<{
   // 階段更新：RSS 搜尋中
   await db.update(topics).set({ collectionStage: 'rss_searching' }).where(eq(topics.id, topic.id));
   console.log(`[Timeline] Searching Google News for: "${searchQuery}"`);
+  const rssStartTime = Date.now();
   const { items: rssItems, rawText: rssRawText } = await searchGoogleNews(searchQuery);
+  const rssElapsedSec = (Date.now() - rssStartTime) / 1000;
+  const rssRate = rssElapsedSec > 0 ? rssItems.length / rssElapsedSec : rssItems.length;
+  console.log(`[Timeline] RSS: ${rssItems.length} articles in ${rssElapsedSec.toFixed(1)}s (rate: ${rssRate.toFixed(1)} articles/sec)`);
 
-  // 補充搜尋：如果 RSS 文章數 < 20，自動觸發 Perplexity 搜尋
-  const PERPLEXITY_THRESHOLD = 20;
+  // 補充搜尋：速率 < 1 篇/秒（即文章數量少於搜尋耗時秒數）即觸發 Perplexity
   let newsItems = rssItems;
   let rawText = rssRawText;
-  if (rssItems.length < PERPLEXITY_THRESHOLD) {
+  const shouldTriggerPerplexity = rssRate < 1.0; // 每秒少於 1 篇就補充
+  if (shouldTriggerPerplexity) {
     // 階段更新：Perplexity 補充搜尋中
     await db.update(topics).set({ collectionStage: 'perplexity_searching' }).where(eq(topics.id, topic.id));
-    console.log(`[Timeline] RSS only returned ${rssItems.length} articles (< ${PERPLEXITY_THRESHOLD}), triggering Perplexity supplemental search...`);
+    console.log(`[Timeline] RSS rate ${rssRate.toFixed(1)}/sec < 1.0, triggering Perplexity supplemental search...`);
+    // 第一輪：繁中搜尋
     const perplexityItems = await searchWithPerplexity(query);
-    if (perplexityItems.length > 0) {
+    // 第二輪：英文搜尋（如果查詢是中文）
+    const isChineseQuery = /[一-鿿]/.test(query);
+    const perplexityItemsEn = isChineseQuery ? await searchWithPerplexity(`${query} news`) : [];
+    const allPerplexityItems = [...perplexityItems, ...perplexityItemsEn];
+    if (allPerplexityItems.length > 0) {
       // 合併兩個來源，去除重複 URL
       const existingUrls = new Set(rssItems.map(i => i.url));
-      const newItems = perplexityItems.filter(i => i.url && !existingUrls.has(i.url));
+      const newItems = allPerplexityItems.filter(i => i.url && !existingUrls.has(i.url));
       newsItems = [...rssItems, ...newItems];
       // 重建 rawText（加入 Perplexity 文章的摘要）
       const perplexityText = newItems
