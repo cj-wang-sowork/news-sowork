@@ -9,6 +9,99 @@ import { getDb } from "./db";
 import { topics, turningPoints, newsArticles, type InsertTurningPoint } from "../drizzle/schema";
 import { eq, desc, like, sql } from "drizzle-orm";
 
+// ─── Perplexity Search (補充來源) ───────────────────────────────────────────────
+
+/**
+ * 使用 Perplexity sonar 模型搜尋新聞，作為 Google News RSS 不足時的補充來源
+ * 回傳格式與 NewsItem 相同，方便合併
+ */
+async function searchWithPerplexity(query: string): Promise<NewsItem[]> {
+  const apiKey = ENV.perplexityApiKey;
+  if (!apiKey) {
+    console.warn('[Perplexity] No API key, skipping supplemental search');
+    return [];
+  }
+  try {
+    console.log(`[Perplexity] Supplemental search for: "${query}"`);
+    const resp = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a news research assistant. When given a topic, find recent news articles about it. Return ONLY a JSON array of news items, no other text.',
+          },
+          {
+            role: 'user',
+            content: `Find recent news articles (last 30 days) about: "${query}". Return a JSON array with objects having these fields: title (string, in the original language), url (string), source (string, news outlet name), publishedAt (ISO date string), description (string, 1-2 sentence summary). Return 10-20 articles. Only return the JSON array, nothing else.`,
+          },
+        ],
+        return_citations: true,
+        search_recency_filter: 'month',
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!resp.ok) {
+      console.warn(`[Perplexity] API error: ${resp.status}`);
+      return [];
+    }
+    const data = await resp.json() as {
+      choices: Array<{ message: { content: string } }>;
+      citations?: string[];
+    };
+    const content = data.choices?.[0]?.message?.content ?? '';
+    const citations = data.citations ?? [];
+    // 嘗試解析 LLM 回傳的 JSON
+    const jsonMatch = content.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]) as Array<{
+          title?: string;
+          url?: string;
+          source?: string;
+          publishedAt?: string;
+          description?: string;
+        }>;
+        const items: NewsItem[] = parsed
+          .filter(item => item.title && (item.url || citations.length > 0))
+          .map((item, idx) => ({
+            title: item.title ?? '',
+            url: item.url ?? citations[idx] ?? '',
+            source: item.source ?? 'Perplexity',
+            publishedAt: item.publishedAt ?? new Date().toISOString(),
+            description: item.description ?? '',
+          }))
+          .filter(item => item.url);
+        console.log(`[Perplexity] Found ${items.length} supplemental articles`);
+        return items;
+      } catch {
+        // JSON parse failed, fall through to citation-only mode
+      }
+    }
+    // Fallback: 如果無法解析 JSON，用 citations 建立基本 NewsItem
+    if (citations.length > 0) {
+      const items: NewsItem[] = citations.slice(0, 15).map((url, idx) => ({
+        title: `${query} 相關報導 ${idx + 1}`,
+        url,
+        source: new URL(url).hostname.replace('www.', ''),
+        publishedAt: new Date().toISOString(),
+        description: content.slice(0, 200),
+      }));
+      console.log(`[Perplexity] Using ${items.length} citation URLs as fallback`);
+      return items;
+    }
+    return [];
+  } catch (err) {
+    console.warn('[Perplexity] Search failed:', (err as Error).message);
+    return [];
+  }
+}
+
 // ─── Google News RSS Search ───────────────────────────────────────────────────
 
 interface NewsItem {
@@ -630,7 +723,28 @@ export async function buildTopicTimeline(query: string): Promise<{
   }
 
   console.log(`[Timeline] Searching Google News for: "${searchQuery}"`);
-  const { items: newsItems, rawText } = await searchGoogleNews(searchQuery);
+  const { items: rssItems, rawText: rssRawText } = await searchGoogleNews(searchQuery);
+
+  // 補充搜尋：如果 RSS 文章數 < 20，自動觸發 Perplexity 搜尋
+  const PERPLEXITY_THRESHOLD = 20;
+  let newsItems = rssItems;
+  let rawText = rssRawText;
+  if (rssItems.length < PERPLEXITY_THRESHOLD) {
+    console.log(`[Timeline] RSS only returned ${rssItems.length} articles (< ${PERPLEXITY_THRESHOLD}), triggering Perplexity supplemental search...`);
+    const perplexityItems = await searchWithPerplexity(query);
+    if (perplexityItems.length > 0) {
+      // 合併兩個來源，去除重複 URL
+      const existingUrls = new Set(rssItems.map(i => i.url));
+      const newItems = perplexityItems.filter(i => i.url && !existingUrls.has(i.url));
+      newsItems = [...rssItems, ...newItems];
+      // 重建 rawText（加入 Perplexity 文章的摘要）
+      const perplexityText = newItems
+        .map(item => `[${item.source}] ${item.title}\n${item.description}`)
+        .join('\n\n');
+      rawText = rssRawText + (perplexityText ? `\n\n--- Perplexity Supplemental ---\n${perplexityText}` : '');
+      console.log(`[Timeline] After merge: ${newsItems.length} articles (${rssItems.length} RSS + ${newItems.length} Perplexity)`);
+    }
+  }
 
   if (newsItems.length === 0) {
     console.warn(`[Timeline] No news found for: "${query}"`);
