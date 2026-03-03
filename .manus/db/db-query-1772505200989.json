@@ -1,0 +1,65 @@
+{
+  "query": "SELECT t.id, t.query, COUNT(tp.id) as tp_count FROM topics t LEFT JOIN turning_points tp ON tp.topicId = t.id WHERE t.id IN (30003, 120005, 120008, 120006, 30052, 120002, 120003, 30024, 90002, 30029, 60003) GROUP BY t.id ORDER BY t.id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT t.id, t.query, COUNT(tp.id) as tp_count FROM topics t LEFT JOIN turning_points tp ON tp.topicId = t.id WHERE t.id IN (30003, 120005, 120008, 120006, 30052, 120002, 120003, 30024, 90002, 30029, 60003) GROUP BY t.id ORDER BY t.id;",
+  "rows": [
+    {
+      "id": "30003",
+      "query": "以伊衝突升級",
+      "tp_count": "1"
+    },
+    {
+      "id": "30024",
+      "query": "比特幣市場波動",
+      "tp_count": "6"
+    },
+    {
+      "id": "30029",
+      "query": "台股加權指數",
+      "tp_count": "7"
+    },
+    {
+      "id": "30052",
+      "query": "美伊衝突升級",
+      "tp_count": "2"
+    },
+    {
+      "id": "60003",
+      "query": "台股漲跌分析",
+      "tp_count": "5"
+    },
+    {
+      "id": "90002",
+      "query": "比特幣大跌",
+      "tp_count": "3"
+    },
+    {
+      "id": "120002",
+      "query": "AI監管進程",
+      "tp_count": "3"
+    },
+    {
+      "id": "120003",
+      "query": "AI監管動態",
+      "tp_count": "3"
+    },
+    {
+      "id": "120005",
+      "query": "伊朗危機升溫",
+      "tp_count": "1"
+    },
+    {
+      "id": "120006",
+      "query": "美伊衝突升級",
+      "tp_count": "2"
+    },
+    {
+      "id": "120008",
+      "query": "美以攻打伊朗",
+      "tp_count": "2"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquery\ttp_count\n30003\t以伊衝突升級\t1\n30024\t比特幣市場波動\t6\n30029\t台股加權指數\t7\n30052\t美伊衝突升級\t2\n60003\t台股漲跌分析\t5\n90002\t比特幣大跌\t3\n120002\tAI監管進程\t3\n120003\tAI監管動態\t3\n120005\t伊朗危機升溫\t1\n120006\t美伊衝突升級\t2\n120008\t美以攻打伊朗\t2\n",
+  "stderr": "",
+  "execution_time_ms": 1564
+}

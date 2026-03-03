@@ -516,6 +516,38 @@ export async function buildTopicTimeline(query: string): Promise<{
     }
   }
 
+  // Step 1.5: Fuzzy similarity check — if no exact match, use LLM to check if a similar topic already exists
+  if (!topic) {
+    try {
+      const allTopics = await db.select({ id: topics.id, query: topics.query }).from(topics);
+      if (allTopics.length > 0) {
+        const queryLang = detectQueryLanguage(query);
+        const llmForCheck = selectLLM(queryLang);
+        const topicListStr = allTopics.map(t => `ID:${t.id} 「${t.query}」`).join('\n');
+        const checkResp = await llmForCheck({
+          messages: [
+            { role: 'system', content: '你是一個新聞議題去重助手。判斷新查詢是否與現有議題列表中的某個議題高度相似（指同一事件、同一人物、同一政策，只是措辭不同）。如果高度相似，回傳該議題的 ID；如果沒有相似的，回傳 0。只回傳一個數字，不要任何解釋。' },
+            { role: 'user', content: `新查詢：「${query}」\n\n現有議題列表：\n${topicListStr}\n\n請問新查詢與哪個現有議題高度相似？回傳 ID 數字（沒有則回傳 0）：` },
+          ],
+        });
+        const rawContent = checkResp?.choices?.[0]?.message?.content;
+        const matchIdStr = (typeof rawContent === 'string' ? rawContent.trim() : '0') || '0';
+        const matchId = parseInt(matchIdStr, 10);
+        if (matchId > 0) {
+          const matchedTopicRows = await db.select().from(topics).where(eq(topics.id, matchId)).limit(1);
+          if (matchedTopicRows.length > 0) {
+            console.log(`[Timeline] Similarity check: "${query}" → matched existing topic ID ${matchId} 「${matchedTopicRows[0].query}」, redirecting`);
+            topic = matchedTopicRows[0];
+          }
+        } else {
+          console.log(`[Timeline] Similarity check: "${query}" → no similar topic found, creating new`);
+        }
+      }
+    } catch (e) {
+      console.warn('[Timeline] Similarity check failed, proceeding with new topic creation:', (e as Error).message);
+    }
+  }
+
   // Step 2: Create or update topic
   if (!topic) {
     // Generate clean slug: use pinyin-like encoding for Chinese, fallback to timestamp

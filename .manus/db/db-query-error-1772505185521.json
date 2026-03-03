@@ -1,0 +1,8 @@
+{
+  "query": "SELECT t.id, t.query, COUNT(tp.id) as tp_count FROM topics t LEFT JOIN turning_points tp ON tp.topic_id = t.id WHERE t.id IN (30003, 120005, 120008, 120006, 30052, 120002, 120003, 30024, 90002, 30029, 60003) GROUP BY t.id ORDER BY t.id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT t.id, t.query, COUNT(tp.id) as tp_count FROM topics t LEFT JOIN turning_points tp ON tp.topic_id = t.id WHERE t.id IN (30003, 120005, 120008, 120006, 30052, 120002, 120003, 30024, 90002, 30029, 60003) GROUP BY t.id ORDER BY t.id;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'tp.topic_id' in 'on clause'"
+  ]
+}
