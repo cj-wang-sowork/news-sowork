@@ -1,0 +1,65 @@
+{
+  "query": "SELECT url, source, title FROM news_articles WHERE url LIKE '%news.google.com%' LIMIT 5;\nSELECT url, source, title FROM news_articles WHERE url NOT LIKE '%news.google.com%' LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT url, source, title FROM news_articles WHERE url LIKE '%news.google.com%' LIMIT 5;\nSELECT url, source, title FROM news_articles WHERE url NOT LIKE '%news.google.com%' LIMIT 5;",
+  "rows": [
+    {
+      "url": "https://news.google.com/rss/articles/CBMiqwFBVV95cUxNMFpsd01yY28zZ0ZjM2Q0SmdibjFMVVZDdlVMcDhwaHJ2NmVzTTFvalpSYTZUeC0zeFJmZGlzZzAxTmdxZWFzLVEybVppLThTVjlLRThsOFdoekZhbzJmTlFVZDFHdDR2b2FYWmxXVlhja1FOSWJDUkhOa2ttUzk1dXhGQmJtVTc3SVBXYlVGSnZDWWJrUFdHZy1qS1pMNHlMQ0Z6MnJCOG16b00?oc=5",
+      "source": "Reuters",
+      "title": "Trump warns Iran of unprecedented force if it retaliates - Reuters"
+    },
+    {
+      "url": "https://news.google.com/rss/articles/CBMiygFBVV95cUxON1VCaWpJc05SUGFZSUJVNXdQak0wYlVsM3FQQ1RxNGFiTmNjNVJneGlPd3hEdEs3QzFlZEVnVW1iX3NHVlhPRWlkeTBlSkZzbWJuN1ZpUGVkeTRJd3UtUDkzVzUyTnlQbDZxaGpCbC1iX1R6VUtLUDBZbDZucnh6OGdnUnZiS0UzMWRZbm5TdElBS2JNcHBfNTFrODdIRExkSE9yN2pzYlpSS1pody14SnBsTWpiMzJwdTlyR2EyVExPRGU2VGNCeGFR?oc=5",
+      "source": "Reuters",
+      "title": "Israel's operation against Iran was coordinated with US, Israeli official says - Reuters"
+    },
+    {
+      "url": "https://news.google.com/rss/articles/CBMiugFBVV95cUxQcnVlVURCZnA2VkNnUWY2R1JLY1NNSXVTUWlnaWlmRFVzMFlfTXdvbUhrZVpWVVljejlZWGc3VXpLdEp2U1J3Q3VLWFRNbmJhQTdBbDFsRVczSzFHVlBsTEdxWnkxZ0JKLXl1VnFHOVQ2d21FY1hQbVA4ZVhXMllqbWJ6MlZteXIySzNJM05KWVQ0MUdoNVhlbkY5eDQ2dks4ZGRLMzJSRncyeU53RlR2VU4wZ2o3azM5Q2c?oc=5",
+      "source": "Reuters",
+      "title": "Just one in four Americans support US strikes on Iran — Reuters/Ipsos poll - The Times of Israel"
+    },
+    {
+      "url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxQc1A0d3pyMVpWcmpzQ3RMcFBXRnByVGhmWTgxalNMYzNGWXBFYWhEY2tULUtMYlEzeXpqTnNlMTN2VTJtTGZvanFCdk1nVmJfWlNJLVh6OVJMQUtJak1YMmtSVi1uSWJ5RkxiMTEzRXAyekJGdmNkNG0tQXFLLUZWb1loQlZjeXJLYjBwQ0VTUGh3aGxQYVdKUG5KNW5pczI3OV9hMTdCQllaM3Z5Q0ZPZXhtMmlrZw?oc=5",
+      "source": "Reuters",
+      "title": "Israeli Strikes Hit Hospital in Tehran, Witnesses Tell Reuters - U.S. News & World Report"
+    },
+    {
+      "url": "https://news.google.com/rss/articles/CBMi1gFBVV95cUxPcTdTYk5rNDg1RkxNQWVTc1NSVHEtbXc0UVdGUHoySVVVRmxPZlF0cXBoa2RKSUFZUFFqVXc0elZQNzg5ZUV5ZTB3QmMtLVkzalFOYms0bFhjUzZJb0VWMUJOQTc0MlA2T2ItUHlBU0dUSjhaellWQkxPVWp6X25TV2tGVGsyZl9PaVZMd2tmbmJzcjlRcmREVzNfOVpxanBGVlNDclZEV2dJYmVydWtOUXMyUHNCV2xEOFEzR2tuYUtDMklSYjJ5MUt0VG5XZ296SVctcGR3?oc=5",
+      "source": "Reuters",
+      "title": "Just 1 in 4 Americans support strikes on Iran, Reuters/Ipsos poll finds - The Detroit News"
+    },
+    {
+      "url": "url",
+      "source": "source",
+      "title": "title"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/def/breakingnews/5355450",
+      "source": "自由時報",
+      "title": "史詩怒火行動發威 美軍發射ATACMS精準重創伊朗機動飛彈與防空系統"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/world/breakingnews/5355453",
+      "source": "自由時報",
+      "title": "川普：已擊沉伊朗9艘軍艦　海軍總部基本上遭摧毀"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/focus/breakingnews/5355416",
+      "source": "自由時報",
+      "title": "《TAIPEI TIMES》Taoyuan agriculture office touts new rice varieties"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/focus/breakingnews/5355403",
+      "source": "自由時報",
+      "title": "《TAIPEI TIMES》Taiwan continues to receive royalties from F-16V project"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/focus/breakingnews/5355413",
+      "source": "自由時報",
+      "title": "《TAIPEI TIMES》Iran’s supreme leader Khamenei killed"
+    }
+  ],
+  "messages": [],
+  "stdout": "url\tsource\ttitle\nhttps://news.google.com/rss/articles/CBMiqwFBVV95cUxNMFpsd01yY28zZ0ZjM2Q0SmdibjFMVVZDdlVMcDhwaHJ2NmVzTTFvalpSYTZUeC0zeFJmZGlzZzAxTmdxZWFzLVEybVppLThTVjlLRThsOFdoekZhbzJmTlFVZDFHdDR2b2FYWmxXVlhja1FOSWJDUkhOa2ttUzk1dXhGQmJtVTc3SVBXYlVGSnZDWWJrUFdHZy1qS1pMNHlMQ0Z6MnJCOG16b00?oc=5\tReuters\tTrump warns Iran of unprecedented force if it retaliates - Reuters\nhttps://news.google.com/rss/articles/CBMiygFBVV95cUxON1VCaWpJc05SUGFZSUJVNXdQak0wYlVsM3FQQ1RxNGFiTmNjNVJneGlPd3hEdEs3QzFlZEVnVW1iX3NHVlhPRWlkeTBlSkZzbWJuN1ZpUGVkeTRJd3UtUDkzVzUyTnlQbDZxaGpCbC1iX1R6VUtLUDBZbDZucnh6OGdnUnZiS0UzMWRZbm5TdElBS2JNcHBfNTFrODdIRExkSE9yN2pzYlpSS1pody14SnBsTWpiMzJwdTlyR2EyVExPRGU2VGNCeGFR?oc=5\tReuters\tIsrael's operation against Iran was coordinated with US, Israeli official says - Reuters\nhttps://news.google.com/rss/articles/CBMiugFBVV95cUxQcnVlVURCZnA2VkNnUWY2R1JLY1NNSXVTUWlnaWlmRFVzMFlfTXdvbUhrZVpWVVljejlZWGc3VXpLdEp2U1J3Q3VLWFRNbmJhQTdBbDFsRVczSzFHVlBsTEdxWnkxZ0JKLXl1VnFHOVQ2d21FY1hQbVA4ZVhXMllqbWJ6MlZteXIySzNJM05KWVQ0MUdoNVhlbkY5eDQ2dks4ZGRLMzJSRncyeU53RlR2VU4wZ2o3azM5Q2c?oc=5\tReuters\tJust one in four Americans support US strikes on Iran — Reuters/Ipsos poll - The Times of Israel\nhttps://news.google.com/rss/articles/CBMitgFBVV95cUxQc1A0d3pyMVpWcmpzQ3RMcFBXRnByVGhmWTgxalNMYzNGWXBFYWhEY2tULUtMYlEzeXpqTnNlMTN2VTJtTGZvanFCdk1nVmJfWlNJLVh6OVJMQUtJak1YMmtSVi1uSWJ5RkxiMTEzRXAyekJGdmNkNG0tQXFLLUZWb1loQlZjeXJLYjBwQ0VTUGh3aGxQYVdKUG5KNW5pczI3OV9hMTdCQllaM3Z5Q0ZPZXhtMmlrZw?oc=5\tReuters\tIsraeli Strikes Hit Hospital in Tehran, Witnesses Tell Reuters - U.S. News & World Report\nhttps://news.google.com/rss/articles/CBMi1gFBVV95cUxPcTdTYk5rNDg1RkxNQWVTc1NSVHEtbXc0UVdGUHoySVVVRmxPZlF0cXBoa2RKSUFZUFFqVXc0elZQNzg5ZUV5ZTB3QmMtLVkzalFOYms0bFhjUzZJb0VWMUJOQTc0MlA2T2ItUHlBU0dUSjhaellWQkxPVWp6X25TV2tGVGsyZl9PaVZMd2tmbmJzcjlRcmREVzNfOVpxanBGVlNDclZEV2dJYmVydWtOUXMyUHNCV2xEOFEzR2tuYUtDMklSYjJ5MUt0VG5XZ296SVctcGR3?oc=5\tReuters\tJust 1 in 4 Americans support strikes on Iran, Reuters/Ipsos poll finds - The Detroit News\nurl\tsource\ttitle\nhttps://news.ltn.com.tw/news/def/breakingnews/5355450\t自由時報\t史詩怒火行動發威 美軍發射ATACMS精準重創伊朗機動飛彈與防空系統\nhttps://news.ltn.com.tw/news/world/breakingnews/5355453\t自由時報\t川普：已擊沉伊朗9艘軍艦　海軍總部基本上遭摧毀\nhttps://news.ltn.com.tw/news/focus/breakingnews/5355416\t自由時報\t《TAIPEI TIMES》Taoyuan agriculture office touts new rice varieties\nhttps://news.ltn.com.tw/news/focus/breakingnews/5355403\t自由時報\t《TAIPEI TIMES》Taiwan continues to receive royalties from F-16V project\nhttps://news.ltn.com.tw/news/focus/breakingnews/5355413\t自由時報\t《TAIPEI TIMES》Iran’s supreme leader Khamenei killed\n",
+  "stderr": "",
+  "execution_time_ms": 1832
+}

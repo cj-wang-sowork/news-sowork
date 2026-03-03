@@ -1,0 +1,60 @@
+{
+  "query": "SELECT url, source, title FROM news_articles LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT url, source, title FROM news_articles LIMIT 10;",
+  "rows": [
+    {
+      "url": "https://news.ltn.com.tw/news/def/breakingnews/5355450",
+      "source": "自由時報",
+      "title": "史詩怒火行動發威 美軍發射ATACMS精準重創伊朗機動飛彈與防空系統"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/world/breakingnews/5355453",
+      "source": "自由時報",
+      "title": "川普：已擊沉伊朗9艘軍艦　海軍總部基本上遭摧毀"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/focus/breakingnews/5355416",
+      "source": "自由時報",
+      "title": "《TAIPEI TIMES》Taoyuan agriculture office touts new rice varieties"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/focus/breakingnews/5355403",
+      "source": "自由時報",
+      "title": "《TAIPEI TIMES》Taiwan continues to receive royalties from F-16V project"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/focus/breakingnews/5355413",
+      "source": "自由時報",
+      "title": "《TAIPEI TIMES》Iran’s supreme leader Khamenei killed"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/focus/breakingnews/5355402",
+      "source": "自由時報",
+      "title": "《TAIPEI TIMES》MOFA tells China not to ‘meddle’ in evacuations"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/focus/breakingnews/5355407",
+      "source": "自由時報",
+      "title": "《TAIPEI TIMES》Former minister talks Takaichi, Taiwan"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/focus/breakingnews/5355415",
+      "source": "自由時報",
+      "title": "《TAIPEI TIMES》LNG, oil supplies uninterrupted: CPC Corp, Taiwan"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/focus/breakingnews/5355414",
+      "source": "自由時報",
+      "title": "《TAIPEI TIMES》US could shift focus to Indo-Pacific, researchers say"
+    },
+    {
+      "url": "https://news.ltn.com.tw/news/world/breakingnews/5355451",
+      "source": "自由時報",
+      "title": "美軍：B-2轟炸機投下近1公噸炸彈襲伊朗彈道飛彈設施"
+    }
+  ],
+  "messages": [],
+  "stdout": "url\tsource\ttitle\nhttps://news.ltn.com.tw/news/def/breakingnews/5355450\t自由時報\t史詩怒火行動發威 美軍發射ATACMS精準重創伊朗機動飛彈與防空系統\nhttps://news.ltn.com.tw/news/world/breakingnews/5355453\t自由時報\t川普：已擊沉伊朗9艘軍艦　海軍總部基本上遭摧毀\nhttps://news.ltn.com.tw/news/focus/breakingnews/5355416\t自由時報\t《TAIPEI TIMES》Taoyuan agriculture office touts new rice varieties\nhttps://news.ltn.com.tw/news/focus/breakingnews/5355403\t自由時報\t《TAIPEI TIMES》Taiwan continues to receive royalties from F-16V project\nhttps://news.ltn.com.tw/news/focus/breakingnews/5355413\t自由時報\t《TAIPEI TIMES》Iran’s supreme leader Khamenei killed\nhttps://news.ltn.com.tw/news/focus/breakingnews/5355402\t自由時報\t《TAIPEI TIMES》MOFA tells China not to ‘meddle’ in evacuations\nhttps://news.ltn.com.tw/news/focus/breakingnews/5355407\t自由時報\t《TAIPEI TIMES》Former minister talks Takaichi, Taiwan\nhttps://news.ltn.com.tw/news/focus/breakingnews/5355415\t自由時報\t《TAIPEI TIMES》LNG, oil supplies uninterrupted: CPC Corp, Taiwan\nhttps://news.ltn.com.tw/news/focus/breakingnews/5355414\t自由時報\t《TAIPEI TIMES》US could shift focus to Indo-Pacific, researchers say\nhttps://news.ltn.com.tw/news/world/breakingnews/5355451\t自由時報\t美軍：B-2轟炸機投下近1公噸炸彈襲伊朗彈道飛彈設施\n",
+  "stderr": "",
+  "execution_time_ms": 1614
+}

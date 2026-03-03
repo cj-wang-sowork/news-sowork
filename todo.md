@@ -333,3 +333,8 @@
 
 ## Sprint 54 — UTM 參數追蹤
 - [x] 所有 tw.sowork.ai 連結加上 utm_source=newsflow&utm_medium=referral（7 處連結全部更新）
+
+## Sprint 55 — 修復新聞來源連結（Google News 轉址 → 原始文章）
+- [x] 診斷 RSS 解析的 link 欄位：確認是 news.google.com/rss/articles/ 轉址 URL
+- [x] 修復：將 news.google.com/rss/articles/ 改為 news.google.com/articles/，手機可正常轉址到原始文章（測試確認自由財經正常轉址）
+- [x] 確保新搜尋的文章連結直接指向原始媒體網站

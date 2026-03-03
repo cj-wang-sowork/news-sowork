@@ -292,16 +292,38 @@ function parseRssXml(xml: string): NewsItem[] {
     const block = match[1] ?? "";
 
     const title = extractTag(block, "title") ?? "";
-    const link = extractTag(block, "link") ?? extractTag(block, "guid") ?? "";
+    const gnLink = extractTag(block, "link") ?? extractTag(block, "guid") ?? "";
     const pubDate = extractTag(block, "pubDate") ?? "";
     const description = extractTag(block, "description") ?? "";
-    const source = extractTag(block, "source") ?? extractDomain(link);
+    const source = extractTag(block, "source") ?? extractDomain(gnLink);
 
-    if (!title || !link) continue;
+    // Extract source domain from <source url="..."> attribute
+    const sourceUrlMatch = block.match(/<source[^>]+url="([^"]+)"/);
+    const sourceBaseUrl = sourceUrlMatch?.[1]?.trim() ?? "";
+    const sourceDomain = sourceBaseUrl ? new URL(sourceBaseUrl).hostname.replace('www.', '') : '';
+
+    // Build the best possible URL for the article:
+    // 1. If it's NOT a Google News redirect, use it directly (e.g. from Perplexity)
+    // 2. If it IS a Google News RSS URL (news.google.com/rss/articles/...),
+    //    convert to the web version (news.google.com/articles/...) by removing /rss/
+    //    The web version opens correctly on mobile browsers and Google News app
+    let finalUrl: string;
+    const cleanTitle = cleanHtml(title);
+    if (gnLink.includes('news.google.com/rss/articles/')) {
+      // Convert RSS URL to web URL: remove /rss/ prefix
+      finalUrl = gnLink.replace('news.google.com/rss/articles/', 'news.google.com/articles/');
+    } else if (gnLink.includes('news.google.com')) {
+      // Other Google News URLs: keep as-is
+      finalUrl = gnLink.trim();
+    } else {
+      finalUrl = gnLink.trim();
+    }
+
+    if (!cleanTitle || !finalUrl) continue;
 
     items.push({
       title: cleanHtml(title),
-      url: link.trim(),
+      url: finalUrl,
       source: cleanHtml(source),
       publishedAt: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
       description: cleanHtml(description).slice(0, 300),

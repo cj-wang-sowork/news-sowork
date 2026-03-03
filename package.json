@@ -63,6 +63,7 @@
     "express": "^4.21.2",
     "firebase": "^12.10.0",
     "framer-motion": "^12.23.22",
+    "gnews": "^1.0.3",
     "input-otp": "^1.4.2",
     "jose": "6.1.0",
     "lucide-react": "^0.453.0",

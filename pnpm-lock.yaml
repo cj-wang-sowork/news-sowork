@@ -166,6 +166,9 @@ importers:
       framer-motion:
         specifier: ^12.23.22
         version: 12.23.22(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      gnews:
+        specifier: ^1.0.3
+        version: 1.0.3
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -3590,6 +3593,9 @@ packages:
   globals@15.15.0:
     resolution: {integrity: sha512-7ACyT3wmyp3I61S4fG682L0VA2RGD9otkqGJIwNUMF1SWUombIIk+af1unuDYgMm082aHYwD+mzJvv9Iu8dsgg==}
     engines: {node: '>=18'}
+
+  gnews@1.0.3:
+    resolution: {integrity: sha512-CXVDoC7UfgDMS2WTT7AfrpI4JJ6RQra5gIBR45/tBhN2MdVyxaPjhOdkCPFT6SE+7fJ2rcjz0ICbhYpXl7Cp3w==}
 
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
@@ -8563,6 +8569,10 @@ snapshots:
       resolve-pkg-maps: 1.0.0
 
   globals@15.15.0: {}
+
+  gnews@1.0.3:
+    dependencies:
+      rss-parser: 3.13.0
 
   gopd@1.2.0: {}
 
