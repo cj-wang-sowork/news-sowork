@@ -1,0 +1,18 @@
+{
+  "query": "SELECT id, query FROM topics WHERE query LIKE '%台積電%' OR query LIKE '%TSMC%' LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT id, query FROM topics WHERE query LIKE '%台積電%' OR query LIKE '%TSMC%' LIMIT 5;",
+  "rows": [
+    {
+      "id": "30001",
+      "query": "台積電赴美進展"
+    },
+    {
+      "id": "30017",
+      "query": "台積電先進製程"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tquery\n30001\t台積電赴美進展\n30017\t台積電先進製程\n",
+  "stderr": "",
+  "execution_time_ms": 1542
+}

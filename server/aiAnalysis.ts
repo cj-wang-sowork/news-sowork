@@ -9,95 +9,104 @@ import { getDb } from "./db";
 import { topics, turningPoints, newsArticles, type InsertTurningPoint } from "../drizzle/schema";
 import { eq, desc, like, sql } from "drizzle-orm";
 
-// ─── Perplexity Search (補充來源) ───────────────────────────────────────────────
+// ─── LLM Supplemental Search (補充來源) ─────────────────────────────────────────
 
 /**
- * 使用 Perplexity sonar 模型搜尋新聞，作為 Google News RSS 不足時的補充來源
+ * 使用 Manus 內建 LLM 搜尋新聞，作為 Google News RSS 的補充來源
+ * 讓 LLM 以 web_search 能力找出更多相關新聞文章
  * 回傳格式與 NewsItem 相同，方便合併
  */
-async function searchWithPerplexity(query: string): Promise<NewsItem[]> {
-  const apiKey = ENV.perplexityApiKey;
-  if (!apiKey) {
-    console.warn('[Perplexity] No API key, skipping supplemental search');
-    return [];
-  }
+async function searchWithLLM(query: string, angle: 'main' | 'analysis' | 'english' = 'main'): Promise<NewsItem[]> {
   try {
-    console.log(`[Perplexity] Supplemental search for: "${query}"`);
-    const resp = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a news research assistant. When given a topic, find recent news articles about it. Return ONLY a JSON array of news items, no other text.',
-          },
-          {
-            role: 'user',
-            content: `Find recent news articles (last 30 days) about: "${query}". Return a JSON array with objects having these fields: title (string, in the original language), url (string, must be a real URL), source (string, news outlet name), publishedAt (ISO date string), description (string, 1-2 sentence summary). Return AT LEAST 30 articles, up to 50 if available. Include articles from diverse sources (different countries, languages, media outlets). Only return the JSON array, nothing else.`,
-          },
-        ],
-        return_citations: true,
-        search_recency_filter: 'month',
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!resp.ok) {
-      console.warn(`[Perplexity] API error: ${resp.status}`);
-      return [];
-    }
-    const data = await resp.json() as {
-      choices: Array<{ message: { content: string } }>;
-      citations?: string[];
+    const anglePrompts: Record<string, string> = {
+      main: `找出關於「${query}」的最新新聞報導（最近 30 天內）。`,
+      analysis: `找出關於「${query}」的深度分析、評論和背景報導（最近 30 天內）。`,
+      english: `Find recent English news articles (last 30 days) about: "${query}". Focus on international media coverage.`,
     };
-    const content = data.choices?.[0]?.message?.content ?? '';
-    const citations = data.citations ?? [];
-    // 嘗試解析 LLM 回傳的 JSON
-    const jsonMatch = content.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]) as Array<{
-          title?: string;
-          url?: string;
-          source?: string;
-          publishedAt?: string;
-          description?: string;
-        }>;
-        const items: NewsItem[] = parsed
-          .filter(item => item.title && (item.url || citations.length > 0))
-          .map((item, idx) => ({
-            title: item.title ?? '',
-            url: item.url ?? citations[idx] ?? '',
-            source: item.source ?? 'Perplexity',
-            publishedAt: item.publishedAt ?? new Date().toISOString(),
-            description: item.description ?? '',
-          }))
-          .filter(item => item.url);
-        console.log(`[Perplexity] Found ${items.length} supplemental articles`);
-        return items;
-      } catch {
-        // JSON parse failed, fall through to citation-only mode
+    const prompt = anglePrompts[angle] ?? anglePrompts.main;
+    console.log(`[LLM-Search] Supplemental search (${angle}) for: "${query}"`);
+
+    const resp = await invokeLLM({
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a news research assistant with web search capabilities. When given a topic, find and list recent news articles. Return ONLY a valid JSON array, no markdown, no explanation.',
+        },
+        {
+          role: 'user',
+          content: `${prompt}
+
+Return a JSON array of news articles. Each object must have:
+- title: article headline (string)
+- url: direct URL to the article (must be a real, working URL from a known news site)
+- source: news outlet name (string)
+- publishedAt: publication date in ISO format (string)
+- description: 1-2 sentence summary (string)
+
+Return 20-40 articles from diverse sources. Only return the JSON array, nothing else.`,
+        },
+      ],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'news_articles',
+          strict: true,
+          schema: {
+            type: 'object',
+            properties: {
+              articles: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    title: { type: 'string' },
+                    url: { type: 'string' },
+                    source: { type: 'string' },
+                    publishedAt: { type: 'string' },
+                    description: { type: 'string' },
+                  },
+                  required: ['title', 'url', 'source', 'publishedAt', 'description'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ['articles'],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const content = (resp as { choices?: Array<{ message?: { content?: string } }> }).choices?.[0]?.message?.content ?? '';
+    if (!content) return [];
+
+    // 嘗試解析 JSON
+    let parsed: { articles?: Array<{ title?: string; url?: string; source?: string; publishedAt?: string; description?: string }> } | null = null;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      // 嘗試從 markdown code block 提取
+      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) ?? content.match(/(\{[\s\S]*\})/);
+      if (jsonMatch?.[1]) {
+        try { parsed = JSON.parse(jsonMatch[1]); } catch { /* ignore */ }
       }
     }
-    // Fallback: 如果無法解析 JSON，用 citations 建立基本 NewsItem
-    if (citations.length > 0) {
-      const items: NewsItem[] = citations.slice(0, 15).map((url, idx) => ({
-        title: `${query} 相關報導 ${idx + 1}`,
-        url,
-        source: new URL(url).hostname.replace('www.', ''),
-        publishedAt: new Date().toISOString(),
-        description: content.slice(0, 200),
+
+    const rawArticles = parsed?.articles ?? [];
+    const items: NewsItem[] = rawArticles
+      .filter(item => item.title && item.url && item.url.startsWith('http'))
+      .map(item => ({
+        title: item.title ?? '',
+        url: item.url ?? '',
+        source: item.source ?? 'LLM Search',
+        publishedAt: item.publishedAt ?? new Date().toISOString(),
+        description: item.description ?? '',
       }));
-      console.log(`[Perplexity] Using ${items.length} citation URLs as fallback`);
-      return items;
-    }
-    return [];
+
+    console.log(`[LLM-Search] Found ${items.length} supplemental articles (${angle})`);
+    return items;
   } catch (err) {
-    console.warn('[Perplexity] Search failed:', (err as Error).message);
+    console.warn('[LLM-Search] Search failed:', (err as Error).message);
     return [];
   }
 }
@@ -192,7 +201,7 @@ function isLocalTaiwanTopic(query: string): boolean {
  * Google News RSS: https://news.google.com/rss/search?q=QUERY&hl=zh-TW&gl=TW&ceid=TW:zh-Hant
  * 台灣在地議題只搜台灣 feed，全球議題搜台灣+香港+英文
  */
-export async function searchGoogleNews(query: string, targetCount = 50): Promise<{
+export async function searchGoogleNews(query: string, targetCount = 100): Promise<{
   items: NewsItem[];
   rawText: string;
 }> {
@@ -291,7 +300,7 @@ export async function searchGoogleNews(query: string, targetCount = 50): Promise
 
   // 再用 Google News RSS 搜尋（補充更多文章）
   for (const q of Array.from(queryVariants)) {
-    if (allItems.length >= targetCount * 3) break;
+    if (allItems.length >= targetCount * 2) break;
     const encodedQuery = encodeURIComponent(`${q} after:${afterDate}`);
 
     // 台灣在地：搜台灣+香港；全球：搜台灣+香港+英文
@@ -338,7 +347,7 @@ export async function searchGoogleNews(query: string, targetCount = 50): Promise
   // Sort by date (newest first)
   deduped.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
-  const top = deduped.slice(0, Math.max(targetCount, 50));
+  const top = deduped.slice(0, Math.max(targetCount, 100));
 
   // Build raw text summary for LLM (包含 URL 讓 AI 能引用真實連結)
   const rawText = top
@@ -879,30 +888,53 @@ export async function buildTopicTimeline(query: string): Promise<{
   const rssRate = rssItems.length / rssElapsedSec;
   console.log(`[Timeline] RSS: ${rssItems.length} articles in ${rssElapsedSec.toFixed(1)}s (rate: ${rssRate.toFixed(1)} articles/sec)`);
 
-  // 補充搜尋：速率 < 1 篇/秒 或 文章數 < 20 即觸發 Perplexity
+  // ── LLM 補充搜尋：永遠啟動，最大化文章覆蓋率 ──
+  // 無論 Google News 收集多少篇，都額外用 Manus 內建 LLM 補充不同角度的報導
   let newsItems = rssItems;
   let rawText = rssRawText;
-  const shouldTriggerPerplexity = rssRate < 1.0 || rssItems.length < 20;
-  if (shouldTriggerPerplexity) {
-    // 階段更新：Perplexity 補充搜尋中
+
+  {
+    // 階段更新：LLM 補充搜尋中
     await db.update(topics).set({ collectionStage: 'perplexity_searching' }).where(eq(topics.id, topic.id));
-    console.log(`[Timeline] Triggering Perplexity (rate: ${rssRate.toFixed(1)}/sec, count: ${rssItems.length})...`);
-    // 第一輪：繁中搜尋
-    const perplexityItems = await searchWithPerplexity(query);
-    // 第二輪：英文搜尋（如果查詢是中文）
-    const isChineseQuery = /[一-鿿]/.test(query);
-    const perplexityItemsEn = isChineseQuery ? await searchWithPerplexity(`${query} news`) : [];
-    const allPerplexityItems = [...perplexityItems, ...perplexityItemsEn];
-    if (allPerplexityItems.length > 0) {
-      // 合併兩個來源，去除重複 URL
-      const existingUrls = new Set(rssItems.map(i => i.url));
-      const newItems = allPerplexityItems.filter(i => i.url && !existingUrls.has(i.url));
+    const isChineseQuery = /[\u4e00-\u9fff]/.test(query);
+
+    // 並行執行两輪 LLM 搜尋：主要角度 + 分析角度
+    const llmAngles: Array<'main' | 'analysis' | 'english'> = ['main', 'analysis'];
+    if (!isChineseQuery) {
+      // 英文議題加入英文角度
+      llmAngles.push('english');
+    }
+
+    console.log(`[Timeline] Triggering LLM supplemental search (${llmAngles.length} angles, RSS: ${rssItems.length} articles)...`);
+
+    // 並行執行所有 LLM 搜尋
+    const llmResults = await Promise.all(
+      llmAngles.map(angle => searchWithLLM(query, angle))
+    );
+    const allLLMItems = llmResults.flat();
+
+    if (allLLMItems.length > 0) {
+      // 合併兩個來源，去除重複 URL（以標題相似度也去重）
+      const existingUrls = new Set<string>(rssItems.map((i: NewsItem) => i.url));
+      const existingTitleWords = new Set<string>(
+        rssItems.flatMap((i: NewsItem) => i.title.split(/\s+/).filter((w: string) => w.length >= 4))
+      );
+      const newItems = allLLMItems.filter((i: NewsItem) => {
+        if (!i.url || existingUrls.has(i.url)) return false;
+        // 避免標題完全重複的文章（允許部分重疊）
+        const titleWords = i.title.split(/\s+/).filter((w: string) => w.length >= 4);
+        const overlapCount = titleWords.filter((w: string) => existingTitleWords.has(w)).length;
+        const overlapRatio = titleWords.length > 0 ? overlapCount / titleWords.length : 0;
+        return overlapRatio < 0.8; // 允許最多 80% 標題詞重疊
+      });
       newsItems = [...rssItems, ...newItems];
-      console.log(`[Timeline] After merge: ${newsItems.length} articles (${rssItems.length} RSS + ${newItems.length} Perplexity)`);
+      console.log(`[Timeline] After LLM merge: ${newsItems.length} articles (${rssItems.length} RSS + ${newItems.length} new from LLM)`);
       // 重建完整 rawText：將所有文章統一格式，包含 URL 讓 AI 能引用真實連結
       rawText = newsItems
-        .map((item, i) => `[${i + 1}] ${item.publishedAt} — ${item.source} — URL: ${item.url}\n標題: ${item.title}\n摘要: ${item.description}`)
+        .map((item: NewsItem, i: number) => `[${i + 1}] ${item.publishedAt} — ${item.source} — URL: ${item.url}\n標題: ${item.title}\n摘要: ${item.description}`)
         .join('\n\n');
+    } else {
+      console.log(`[Timeline] LLM returned 0 articles, using RSS only (${rssItems.length} articles)`);
     }
   }
 
