@@ -575,7 +575,7 @@ export default function Home() {
               </p>
             </div>
             <a
-              href="https://tw.sowork.ai"
+              href="https://tw.sowork.ai?utm_source=newsflow&utm_medium=referral"
               target="_blank"
               rel="noopener noreferrer"
               className="flex-shrink-0 flex items-center gap-2 bg-white text-[#FF5A1F] font-bold px-8 py-3.5 rounded-2xl hover:bg-orange-50 transition-all shadow-lg text-base"
@@ -673,7 +673,7 @@ export default function Home() {
                 時事軸
                 <span className="font-normal text-muted-foreground"> by </span>
                 <a
-                  href="https://tw.sowork.ai"
+                  href="https://tw.sowork.ai?utm_source=newsflow&utm_medium=referral"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[#FF5A1F] hover:underline font-medium"
@@ -685,7 +685,7 @@ export default function Home() {
             {/* 版權聲明 */}
             <p className="text-xs text-muted-foreground text-center">
               © 2026 
-              <a href="https://tw.sowork.ai" target="_blank" rel="noopener noreferrer" className="hover:text-[#FF5A1F] transition-colors">
+              <a href="https://tw.sowork.ai?utm_source=newsflow&utm_medium=referral" target="_blank" rel="noopener noreferrer" className="hover:text-[#FF5A1F] transition-colors">
                 SoWork.ai
               </a>
                · 時事軸。新聞資料由 AI 自動聤合，不代表本平台立場。
@@ -693,7 +693,7 @@ export default function Home() {
             {/* 連結區 */}
             <div className="flex items-center gap-4">
               <a
-                href="https://tw.sowork.ai"
+                href="https://tw.sowork.ai?utm_source=newsflow&utm_medium=referral"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-muted-foreground hover:text-[#FF5A1F] transition-colors"

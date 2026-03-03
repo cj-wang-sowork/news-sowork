@@ -330,3 +330,6 @@
 - [x] 首頁 footer 前加入橙色 SoWork.ai CTA Banner（全寬、白色按鈕、文字說明）
 - [x] Navbar 桌機版加入橙色圓角按鈕「了解 SoWork.ai ↗」，手機選單也加入連結
 - [x] 撰寫 LINE 分享介紹文字
+
+## Sprint 54 — UTM 參數追蹤
+- [x] 所有 tw.sowork.ai 連結加上 utm_source=newsflow&utm_medium=referral（7 處連結全部更新）

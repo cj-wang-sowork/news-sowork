@@ -42,7 +42,7 @@ export default function Navbar() {
                 時事軸
               </span>
               <span
-                onClick={e => { e.preventDefault(); e.stopPropagation(); window.open('https://tw.sowork.ai', '_blank', 'noopener,noreferrer'); }}
+                onClick={e => { e.preventDefault(); e.stopPropagation(); window.open('https://tw.sowork.ai?utm_source=newsflow&utm_medium=referral', '_blank', 'noopener,noreferrer'); }}
                 className="text-[8.5px] font-semibold text-gray-400 hover:text-[#FF5A1F] tracking-[0.14em] uppercase transition-colors cursor-pointer"
                 style={{ fontFamily: 'Sora, sans-serif' }}
               >
@@ -60,7 +60,7 @@ export default function Navbar() {
             </Link>
             {/* SoWork.ai 官網引導 */}
             <a
-              href="https://tw.sowork.ai"
+              href="https://tw.sowork.ai?utm_source=newsflow&utm_medium=referral"
               target="_blank"
               rel="noopener noreferrer"
               className="hidden lg:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#FF5A1F] text-white hover:bg-[#e04d18] transition-all shadow-sm"
@@ -177,7 +177,7 @@ export default function Navbar() {
           </Button>
           {/* SoWork.ai 官網連結（手機版） */}
           <a
-            href="https://tw.sowork.ai"
+            href="https://tw.sowork.ai?utm_source=newsflow&utm_medium=referral"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#FF5A1F] text-white font-semibold text-sm mt-1"
