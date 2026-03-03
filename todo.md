@@ -296,3 +296,7 @@
 ## Sprint 45 — Bug 修復
 - [x] 修復 Navbar：Link 內嵌 a 標籤（by SoWork.ai 連結）導致 React `<a> cannot contain a nested <a>` 錯誤
 - [x] 修復 Timeline：「持續追蹤中...」結尾圓點置中問題，改為對齊左側時間軸
+
+## Sprint 46 — 分享功能改為 Web Share API
+- [x] 將 Timeline 的 LINE 分享按鈕改為手機原生分享（Web Share API），附上議題名稱和獨立網址
+- [x] 桌機 fallback：改為「複製連結」按鈕
