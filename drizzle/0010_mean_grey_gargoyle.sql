@@ -1,0 +1,1 @@
+ALTER TABLE `topics` ADD `collectionStage` enum('rss_searching','perplexity_searching','analyzing','ready') DEFAULT 'ready';

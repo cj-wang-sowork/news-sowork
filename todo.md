@@ -277,3 +277,10 @@
 - [ ] 前端：拖拉到另一卡片上方 → 顯示合併確認 dialog
 - [ ] 前端：議題詳情頁加入「分割議題」按鈕（管理員/登入用戶）
 - [ ] 前端：Navbar 加入「整理議題」入口（僅登入用戶可見）
+
+## Sprint 43 — Perplexity 補充搜尋視覺化狀態指示器
+- [x] 後端：topics 表加入 collectionStage 欄位（rss_searching / perplexity_searching / analyzing / ready）
+- [x] 後端：aiAnalysis.ts 在各階段更新 collectionStage 欄位
+- [x] 後端：getProgress API 回傳 collectionStage 欄位
+- [x] 前端：Timeline 進度條改為分階段步驟指示器（RSS 搜尋 → Perplexity 補充 → AI 分析 → 完成）
+- [x] 前端：修正現有文字錯字「新語」→「新聞」（視覺編輯器已完成）

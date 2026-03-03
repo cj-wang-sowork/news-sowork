@@ -543,11 +543,11 @@ export const appRouter = router({
         if (!db) return { articleCount: 0, turningPointCount: 0, status: 'unknown' as const };
         // 查詢議題
         const [topic] = await db
-          .select({ id: topics.id, totalArticles: topics.totalArticles, totalMedia: topics.totalMedia, lastUpdated: topics.lastUpdated })
+          .select({ id: topics.id, totalArticles: topics.totalArticles, totalMedia: topics.totalMedia, lastUpdated: topics.lastUpdated, collectionStage: topics.collectionStage })
           .from(topics)
           .where(eq(topics.slug, input.slug))
           .limit(1);
-        if (!topic) return { articleCount: 0, turningPointCount: 0, status: 'not_found' as const };
+        if (!topic) return { articleCount: 0, turningPointCount: 0, status: 'not_found' as const, collectionStage: null as string | null };
         // 計算實際收集的文章數
         const [countRow] = await db
           .select({ count: sql<number>`COUNT(*)` })
@@ -563,7 +563,7 @@ export const appRouter = router({
         const turningPointCount = Number(tpRow?.count ?? 0);
         const TARGET = 50;
         const status = articleCount >= TARGET ? 'ready' : 'collecting';
-        return { articleCount, turningPointCount, target: TARGET, status, lastUpdated: topic.lastUpdated };
+        return { articleCount, turningPointCount, target: TARGET, status, lastUpdated: topic.lastUpdated, collectionStage: topic.collectionStage ?? 'ready' };
       }),
 
     // 訂閱議題通知

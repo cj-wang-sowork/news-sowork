@@ -55,6 +55,8 @@ export const topics = mysqlTable("topics", {
   viewCount: int("viewCount").default(0).notNull(),
   // 標籤（JSON 字串，如 ["AI","科技","台灣"]）
   tags: text("tags"),
+  // 收集階段：rss_searching / perplexity_searching / analyzing / ready
+  collectionStage: mysqlEnum("collectionStage", ["rss_searching", "perplexity_searching", "analyzing", "ready"]).default("ready"),
   lastUpdated: timestamp("lastUpdated").defaultNow().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

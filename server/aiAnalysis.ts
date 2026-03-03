@@ -722,6 +722,8 @@ export async function buildTopicTimeline(query: string): Promise<{
     console.warn('[Timeline] Query expansion failed, using original query:', (err as Error).message);
   }
 
+  // 階段更新：RSS 搜尋中
+  await db.update(topics).set({ collectionStage: 'rss_searching' }).where(eq(topics.id, topic.id));
   console.log(`[Timeline] Searching Google News for: "${searchQuery}"`);
   const { items: rssItems, rawText: rssRawText } = await searchGoogleNews(searchQuery);
 
@@ -730,6 +732,8 @@ export async function buildTopicTimeline(query: string): Promise<{
   let newsItems = rssItems;
   let rawText = rssRawText;
   if (rssItems.length < PERPLEXITY_THRESHOLD) {
+    // 階段更新：Perplexity 補充搜尋中
+    await db.update(topics).set({ collectionStage: 'perplexity_searching' }).where(eq(topics.id, topic.id));
     console.log(`[Timeline] RSS only returned ${rssItems.length} articles (< ${PERPLEXITY_THRESHOLD}), triggering Perplexity supplemental search...`);
     const perplexityItems = await searchWithPerplexity(query);
     if (perplexityItems.length > 0) {
@@ -747,10 +751,14 @@ export async function buildTopicTimeline(query: string): Promise<{
   }
 
   if (newsItems.length === 0) {
+    // 階段更新：完成（無文章）
+    await db.update(topics).set({ collectionStage: 'ready' }).where(eq(topics.id, topic.id));
     console.warn(`[Timeline] No news found for: "${query}"`);
     return { topic, turningPointsList: [] };
   }
 
+  // 階段更新：AI 分析中
+  await db.update(topics).set({ collectionStage: 'analyzing' }).where(eq(topics.id, topic.id));
   console.log(`[Timeline] Found ${newsItems.length} articles, formatting timeline...`);
 
   // Step 4: Format into timeline using language-appropriate LLM
@@ -778,6 +786,8 @@ export async function buildTopicTimeline(query: string): Promise<{
       lastUpdated: new Date(),
       // 儲存標籤（JSON 字串）
       tags: JSON.stringify(topicTags),
+      // 階段更新：分析完成
+      collectionStage: 'ready',
       // 如果標題是預設查詢，更新為 AI 生成的簡潔標題
       ...(topic.query === query && topicTitle !== query ? { query: topicTitle } : {}),
     })

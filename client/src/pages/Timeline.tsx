@@ -11,7 +11,7 @@ import { useLocation, useParams } from 'wouter';
 import {
   Newspaper, Radio, ChevronDown, ChevronUp,
   ExternalLink, Zap, ArrowLeft, BrainCircuit, Globe, Loader2, AlertCircle,
-  Bookmark, BookmarkCheck, RefreshCw
+  Bookmark, BookmarkCheck, RefreshCw, Search, Sparkles, Check
 } from 'lucide-react';
 import { Streamdown } from 'streamdown';
 import { Button } from '@/components/ui/button';
@@ -1098,30 +1098,78 @@ export default function Timeline() {
         </div>
       </div>
 
-      {/* 新語收集進度條（收集中時顯示） */}
-      {progressData?.status === 'collecting' && (
-        <div className="bg-orange-50 border-b border-orange-100">
-          <div className="container py-3">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <div className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 text-[#FF5A1F] animate-spin" />
-                <span className="text-sm font-semibold text-[#FF5A1F]">正在收集相關新語</span>
-                <span className="text-xs text-muted-foreground">目標：至少 50 篇才能建立完整時間軸</span>
+      {/* 新聞收集進度條（收集中時顯示） */}
+      {progressData?.status === 'collecting' && (() => {
+        const stage = (progressData as { collectionStage?: string }).collectionStage ?? 'rss_searching';
+        const steps: Array<{ id: string; label: string; icon: React.ElementType; }> = [
+          { id: 'rss_searching', label: 'RSS 搜尋', icon: Search },
+          { id: 'perplexity_searching', label: 'Perplexity 補充', icon: Sparkles },
+          { id: 'analyzing', label: 'AI 分析', icon: BrainCircuit },
+          { id: 'ready', label: '完成', icon: Check },
+        ];
+        const currentIdx = steps.findIndex(s => s.id === stage);
+        const stageDesc: Record<string, string> = {
+          rss_searching: '正在搜尋全球 RSS 新聞來源…',
+          perplexity_searching: 'RSS 文章不足，正在使用 Perplexity AI 補充搜尋…',
+          analyzing: '已收集足夠文章，AI 正在分析轉折點…',
+          ready: '時間軸建立完成！',
+        };
+        return (
+          <div className="bg-orange-50 border-b border-orange-100">
+            <div className="container py-4">
+              {/* 分階段步驟指示器 */}
+              <div className="flex items-center mb-3">
+                {steps.map((step, idx) => {
+                  const Icon = step.icon;
+                  const isDone = idx < currentIdx;
+                  const isActive = idx === currentIdx;
+                  return (
+                    <div key={step.id} className="flex items-center flex-1">
+                      <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${
+                          isDone ? 'bg-[#FF5A1F] text-white' :
+                          isActive ? 'bg-[#FF5A1F]/15 border-2 border-[#FF5A1F] text-[#FF5A1F]' :
+                          'bg-gray-100 border-2 border-gray-200 text-gray-400'
+                        }`}>
+                          {isDone ? <Check className="w-4 h-4" /> : <Icon className={`w-4 h-4 ${isActive ? 'animate-pulse' : ''}`} />}
+                        </div>
+                        <span className={`text-[10px] font-medium whitespace-nowrap hidden sm:block ${
+                          isDone ? 'text-[#FF5A1F]' :
+                          isActive ? 'text-[#FF5A1F] font-semibold' :
+                          'text-gray-400'
+                        }`}>{step.label}</span>
+                      </div>
+                      {idx < steps.length - 1 && (
+                        <div className={`flex-1 h-0.5 mx-1 transition-all duration-500 ${
+                          idx < currentIdx ? 'bg-[#FF5A1F]' : 'bg-gray-200'
+                        }`} />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <span className="text-sm font-bold text-[#FF5A1F]" style={{ fontFamily: 'Sora, sans-serif' }}>
-                {progressData.articleCount} / {progressData.target ?? 50} 篇
-              </span>
+              {/* 當前階段描述 + 篇數 */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-3.5 h-3.5 text-[#FF5A1F] animate-spin" />
+                  <span className="text-xs text-[#FF5A1F] font-medium">{stageDesc[stage] ?? '處理中…'}</span>
+                </div>
+                <span className="text-xs font-bold text-[#FF5A1F] flex-shrink-0" style={{ fontFamily: 'Sora, sans-serif' }}>
+                  {progressData.articleCount} / {progressData.target ?? 50} 篇
+                </span>
+              </div>
+              {/* 進度條 */}
+              <div className="w-full bg-orange-100 rounded-full h-1.5 overflow-hidden mt-2">
+                <div
+                  className="h-1.5 bg-gradient-to-r from-[#FF5A1F] to-[#ff8c5a] rounded-full transition-all duration-700"
+                  style={{ width: `${Math.min(100, Math.round((progressData.articleCount / (progressData.target ?? 50)) * 100))}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">每 10 秒自動更新</p>
             </div>
-            <div className="w-full bg-orange-100 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-2 bg-gradient-to-r from-[#FF5A1F] to-[#ff8c5a] rounded-full transition-all duration-700"
-                style={{ width: `${Math.min(100, Math.round((progressData.articleCount / (progressData.target ?? 50)) * 100))}%` }}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1.5">每 10 秒自動更新——系統正在背景搜尋台灣、香港、英文新語來源</p>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Timeline */}
       <div className="container py-12">
@@ -1132,7 +1180,12 @@ export default function Timeline() {
                 <div className="w-12 h-12 rounded-full border-4 border-[#FF5A1F]/20 border-t-[#FF5A1F] animate-spin" />
                 <div className="text-center">
                   <p className="text-lg font-bold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
-                    正在收集新語中
+                    {(() => {
+                      const s = (progressData as { collectionStage?: string }).collectionStage;
+                      if (s === 'perplexity_searching') return 'Perplexity AI 補充搜尋中';
+                      if (s === 'analyzing') return 'AI 分析轉折點中';
+                      return '正在搜尋相關新聞中';
+                    })()}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     已收集 {progressData.articleCount} 篇，目標 {progressData.target ?? 50} 篇——AI 將從中分析轉折點
@@ -1143,7 +1196,7 @@ export default function Timeline() {
               <>
                 <AlertCircle className="w-10 h-10 text-muted-foreground" />
                 <p className="text-muted-foreground text-center">
-                  AI 正在分析相關新語，轉折點即將生成<br />
+                  AI 正在分析相關新聞，轉折點即將生成<br />
                   <span className="text-sm">請稍後重新整理頁面</span>
                 </p>
               </>
