@@ -256,3 +256,8 @@
 ## Sprint 37 — 社群分享 OG meta tags 優化
 - [x] 生成符合首頁文案的 OG 分享縮圖（1200x630）
 - [x] 更新 index.html 的 Open Graph 和 Twitter Card meta tags
+
+## Sprint 38 — 動態 OG tags + LINE 分享按鈕
+- [x] 安裝 react-helmet-async
+- [x] 議題頁動態 OG tags（標題、描述、縮圖）
+- [x] 時間軸頁面加入 LINE 分享按鈕
