@@ -41,16 +41,13 @@ export default function Navbar() {
               <span className="font-display font-800 text-[15px] text-foreground tracking-tight" style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800 }}>
                 時事軸
               </span>
-              <a
-                href="https://tw.sowork.ai"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                className="text-[10px] font-medium text-muted-foreground hover:text-[#FF5A1F] tracking-widest uppercase transition-colors"
+              <span
+                onClick={e => { e.preventDefault(); e.stopPropagation(); window.open('https://tw.sowork.ai', '_blank', 'noopener,noreferrer'); }}
+                className="text-[10px] font-medium text-muted-foreground hover:text-[#FF5A1F] tracking-widest uppercase transition-colors cursor-pointer"
                 style={{ fontFamily: 'Sora, sans-serif' }}
               >
                 by SoWork.ai
-              </a>
+              </span>
             </div>
           </Link>
 

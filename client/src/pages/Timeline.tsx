@@ -1223,12 +1223,12 @@ export default function Timeline() {
               ))}
             </div>
 
-            {/* End of timeline */}
-            <div className="flex justify-center mt-10">
-              <div className="flex flex-col items-center gap-2">
+            {/* End of timeline — aligned to left axis */}
+            <div className="relative pl-16 md:pl-20 mt-10">
+              <div className="absolute left-6 md:left-8 -translate-x-1/2 top-0 flex flex-col items-center">
                 <div className="w-3 h-3 rounded-full bg-[#FF5A1F]/30" />
-                <p className="text-xs text-muted-foreground">持續追蹤中...</p>
               </div>
+              <p className="text-xs text-muted-foreground pt-0.5">持續追蹤中...</p>
             </div>
           </div>
         )}

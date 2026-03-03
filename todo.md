@@ -292,3 +292,7 @@
 - [x] 首頁 Footer：更新品牌名稱為「時事軸 by SoWork.ai」，加入 SoWork.ai 連結
 - [x] 更新 favicon 為 SoWork.ai 橘色閃電圖示
 - [x] 更新頁面 title 為「時事軸 by SoWork.ai — 看見新聞的演變脈絡」
+
+## Sprint 45 — Bug 修復
+- [x] 修復 Navbar：Link 內嵌 a 標籤（by SoWork.ai 連結）導致 React `<a> cannot contain a nested <a>` 錯誤
+- [x] 修復 Timeline：「持續追蹤中...」結尾圓點置中問題，改為對齊左側時間軸
