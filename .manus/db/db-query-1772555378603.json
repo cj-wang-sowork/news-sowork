@@ -1,0 +1,19 @@
+{
+  "query": "SELECT COUNT(*) as remaining_old FROM news_articles WHERE url LIKE 'https://news.google.com/rss/articles/%';\nSELECT COUNT(*) as new_format FROM news_articles WHERE url LIKE 'https://news.google.com/articles/%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT COUNT(*) as remaining_old FROM news_articles WHERE url LIKE 'https://news.google.com/rss/articles/%';\nSELECT COUNT(*) as new_format FROM news_articles WHERE url LIKE 'https://news.google.com/articles/%';",
+  "rows": [
+    {
+      "remaining_old": "0"
+    },
+    {
+      "remaining_old": "new_format"
+    },
+    {
+      "remaining_old": "1468"
+    }
+  ],
+  "messages": [],
+  "stdout": "remaining_old\n0\nnew_format\n1468\n",
+  "stderr": "",
+  "execution_time_ms": 1732
+}

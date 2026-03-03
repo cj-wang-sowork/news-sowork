@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE news_articles \nSET url = REPLACE(url, 'https://news.google.com/rss/articles/', 'https://news.google.com/articles/')\nWHERE url LIKE 'https://news.google.com/rss/articles/%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute UPDATE news_articles \nSET url = REPLACE(url, 'https://news.google.com/rss/articles/', 'https://news.google.com/articles/')\nWHERE url LIKE 'https://news.google.com/rss/articles/%';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1612
+}

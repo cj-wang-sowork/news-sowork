@@ -1,0 +1,13 @@
+{
+  "query": "SELECT COUNT(*) as count FROM news_articles WHERE url LIKE '%news.google.com/rss/articles/%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT COUNT(*) as count FROM news_articles WHERE url LIKE '%news.google.com/rss/articles/%';",
+  "rows": [
+    {
+      "count": "1468"
+    }
+  ],
+  "messages": [],
+  "stdout": "count\n1468\n",
+  "stderr": "",
+  "execution_time_ms": 1584
+}

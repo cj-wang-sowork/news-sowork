@@ -1,0 +1,19 @@
+{
+  "query": "SELECT COUNT(*) as old_format_count FROM news_articles WHERE url LIKE 'https://news.google.com/rss/articles/%';\nSELECT COUNT(*) as total FROM news_articles;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT COUNT(*) as old_format_count FROM news_articles WHERE url LIKE 'https://news.google.com/rss/articles/%';\nSELECT COUNT(*) as total FROM news_articles;",
+  "rows": [
+    {
+      "old_format_count": "1468"
+    },
+    {
+      "old_format_count": "total"
+    },
+    {
+      "old_format_count": "3757"
+    }
+  ],
+  "messages": [],
+  "stdout": "old_format_count\n1468\ntotal\n3757\n",
+  "stderr": "",
+  "execution_time_ms": 1712
+}

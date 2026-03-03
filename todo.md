@@ -338,3 +338,7 @@
 - [x] 診斷 RSS 解析的 link 欄位：確認是 news.google.com/rss/articles/ 轉址 URL
 - [x] 修復：將 news.google.com/rss/articles/ 改為 news.google.com/articles/，手機可正常轉址到原始文章（測試確認自由財經正常轉址）
 - [x] 確保新搜尋的文章連結直接指向原始媒體網站
+
+## Sprint 56 — 觸發現有議題更新（修復舊文章連結）
+- [x] 查看每日更新排程邏輯，找到 SQL 直接更新方式（比重新抓取更快）
+- [x] 更新資料庫中現有議題的文章 URL（舊格式 0 筆，新格式 1,468 筆）
