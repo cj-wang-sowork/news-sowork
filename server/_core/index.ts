@@ -8,6 +8,8 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { startScheduler } from "../scheduler";
+import { generateOgImage } from "../ogImage";
+import { getDb, getTopicBySlug } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -44,6 +46,33 @@ async function startServer() {
       createContext,
     })
   );
+  // OG Image endpoint — dynamically generate social preview images per topic
+  app.get('/api/og/:slug', async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const topic = await getTopicBySlug(slug);
+      if (!topic) {
+        res.status(404).send('Topic not found');
+        return;
+      }
+      const imageBuffer = await generateOgImage({
+        title: topic.query,
+        category: topic.category,
+        articleCount: topic.totalArticles ?? 0,
+        mediaCount: topic.totalMedia ?? 0,
+      });
+      res.set({
+        'Content-Type': 'image/png',
+        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+        'Content-Length': imageBuffer.length,
+      });
+      res.send(imageBuffer);
+    } catch (err) {
+      console.error('[OG Image] Error generating image:', err);
+      res.status(500).send('Failed to generate OG image');
+    }
+  });
+
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);

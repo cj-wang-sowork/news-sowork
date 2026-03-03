@@ -302,5 +302,7 @@
 - [x] 桌機 fallback：改為「複製連結」按鈕
 
 ## Sprint 47 — 動態 OG 預覽圖生成
-- [ ] 後端：建立 /api/og/:slug endpoint，使用 canvas 動態生成含議題名稱的 OG 圖片（1200×630）
-- [ ] 前端：Timeline 頁面的 og:image 改為指向動態生成的圖片 URL
+- [x] 安裝 sharp 套件（canvas native bindings 無法 build，改用 sharp + SVG）
+- [x] 後端：建立 /api/og/:slug endpoint，動態生成含議題名稱的 OG 圖片（1200×630）
+- [x] 前端：Timeline 頁面的 og:image 改為指向動態生成的圖片 URL
+- [x] 頁面 title 更新為「議題名稱 — 時事軸 by SoWork.ai」

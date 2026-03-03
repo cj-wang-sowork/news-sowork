@@ -1036,10 +1036,11 @@ export default function Timeline() {
     })),
   }));
 
-  const pageTitle = `${topic.query} — NewsFlow`;
+  const pageTitle = `${topic.query} — 時事軸 by SoWork.ai`;
   const pageDesc = `追蹤「${topic.query}」的完整新聞演變脈絡。共 ${topic.totalArticles} 篇報導、${turningPoints.length} 個 AI 偵測轉折點，即時更新。`;
   const pageUrl = `https://newsflow.sowork.ai/timeline/${encodeURIComponent(slug)}`;
-  const ogImage = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/newsflow-og-image-gdtwURgop2GPAgMVKUsDXC.png';
+  // Dynamic OG image — generated server-side with topic title and SoWork.ai branding
+  const ogImage = `${window.location.origin}/api/og/${encodeURIComponent(slug)}`;
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
