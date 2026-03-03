@@ -103,7 +103,7 @@ function TurningPointCard({
 
   return (
     <div
-      className={`w-full md:w-[calc(50%-2rem)] fade-up opacity-0 bg-white rounded-2xl border border-border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden ${isActive ? 'border-[#FF5A1F]/30' : ''}`}
+      className={`w-full fade-up opacity-0 bg-white rounded-2xl border border-border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden ${isActive ? 'border-[#FF5A1F]/30' : ''}`}
       style={{ animationDelay: `${index * 120}ms`, animationFillMode: 'forwards' }}
     >
       {isActive && (
@@ -1151,39 +1151,21 @@ export default function Timeline() {
           </div>
         ) : (
           <div className="relative">
-            {/* Central axis line */}
-            <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#FF5A1F] via-[#FF5A1F] to-[#FF5A1F]/20 -translate-x-1/2" />
-            {/* Mobile axis line */}
-            <div className="md:hidden absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#FF5A1F] to-[#FF5A1F]/20" />
+            {/* Left axis line — desktop & mobile */}
+            <div className="absolute left-6 md:left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#FF5A1F] via-[#FF5A1F] to-[#FF5A1F]/20" />
 
-            <div className="space-y-10">
+            <div className="space-y-8">
               {turningPoints.map((point, index) => (
-                <div key={point.id} className="relative">
-                  {/* Desktop: center dot */}
-                  <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 z-10 items-center justify-center">
+                <div key={point.id} className="relative pl-16 md:pl-20">
+                  {/* Axis dot */}
+                  <div className="absolute left-6 md:left-8 -translate-x-1/2 z-10 top-6">
                     <div
                       className={`w-5 h-5 rounded-full border-4 border-white shadow-md ${HEAT_CONFIG[point.heatLevel]?.bg ?? 'bg-gray-400'} ${point.isActive === 1 ? 'animate-pulse' : ''}`}
                     />
                   </div>
-                  {/* Mobile: left dot */}
-                  <div className="md:hidden absolute left-6 -translate-x-1/2 z-10">
-                    <div className={`w-4 h-4 rounded-full border-2 border-white shadow-sm ${HEAT_CONFIG[point.heatLevel]?.bg ?? 'bg-gray-400'}`} />
-                  </div>
 
-                  {/* Card — desktop alternating, mobile always right */}
-                  <div className="md:grid md:grid-cols-2 md:gap-8 pl-12 md:pl-0">
-                    {index % 2 === 0 ? (
-                      <>
-                        <TurningPointCard point={point} index={index} onAIClick={setSelectedPoint} />
-                        <div className="hidden md:block" />
-                      </>
-                    ) : (
-                      <>
-                        <div className="hidden md:block" />
-                        <TurningPointCard point={point} index={index} onAIClick={setSelectedPoint} />
-                      </>
-                    )}
-                  </div>
+                  {/* Card — full width */}
+                  <TurningPointCard point={point} index={index} onAIClick={setSelectedPoint} />
                 </div>
               ))}
             </div>
