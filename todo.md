@@ -297,7 +297,6 @@
 - [x] 修復 Navbar：Link 內嵌 a 標籤（by SoWork.ai 連結）導致 React `<a> cannot contain a nested <a>` 錯誤
 - [x] 修復 Timeline：「持續追蹤中...」結尾圓點置中問題，改為對齊左側時間軸
 
-<<<<<<< Updated upstream
 ## Sprint 46 — 分享功能改為 Web Share API
 - [x] 將 Timeline 的 LINE 分享按鈕改為手機原生分享（Web Share API），附上議題名稱和獨立網址
 - [x] 桌機 fallback：改為「複製連結」按鈕
@@ -315,18 +314,14 @@
 - [x] 「時事軸」字體加大到 19px、字重 900，「by SoWork.ai」縮小到 8.5px 並改為淡灰色（text-gray-400）
 
 ## Sprint 50 — 改善新聞蒐集數量 + 重點新聞來源標籤
-- [ ] 分析 RSS 搜尋策略瓶頸（關鍵字生成、RSS 來源數量、去重邏輯）
-- [ ] 改善搜尋策略：擴大關鍵字變體、增加 RSS 來源、降低 Perplexity 觸發門檻
+- [x] 後端：RSS 搜尋加入計時，用速率（篇/秒 < 1）取代固定門檻觸發 Perplexity
 - [x] 前端：將「收起報導」改為「重點新聞來源」
 
-## Sprint 50 — 改善新聞蒐集數量 + 重點新聞來源標籤
-- [x] 後端：RSS 搜尋加入計時，用速率（篇/秒 < 1）取代固定門溻觸發 Perplexity
-- [ ] 後端：台灣在地議題也加入香港 feed，全球議題加入簡中 feed
-- [ ] 後端：增加查詢變體（加「最新」「事件」）
-- [ ] 後端：Perplexity 要求回傳 20-30 篇，加入第二輪英文搜尋
-- [x] 前端：將「收起報導」改為「重點新聞來源」
-=======
 ## Sprint 51 — 修復手機分享 + 增加 Perplexity 數量
 - [x] 修復手機分享按鈕（將 LINE 連結改為 Web Share API 按鈕，手機觸發原生分享選單，桌機 fallback 複製連結）
-- [x] 增加 Perplexity 每輪回傳文章數量（30-50 篇），加入第二輪英文搜尋，修復速率觸發邏輪
->>>>>>> Stashed changes
+- [x] 增加 Perplexity 每輪回傳文章數量（30-50 篇），加入第二輪英文搜尋，修復速率觸發邏輯
+
+## Sprint 52 — 修復 Perplexity 補充文章無效問題
+- [x] 診斷 Perplexity 補充後文章數付只有 12 篇的原因（totalArticles 用 AI 估計值而非實際數量）
+- [x] 修復：totalArticles 改用 newsItems.length，Perplexity rawText 格式統一，重建完整 rawText
+- [x] 調整：觸發條件改為速率 < 1 或文章數 < 20，更積極觸發 Perplexity

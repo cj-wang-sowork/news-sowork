@@ -737,14 +737,14 @@ export async function buildTopicTimeline(query: string): Promise<{
   const rssRate = rssItems.length / rssElapsedSec;
   console.log(`[Timeline] RSS: ${rssItems.length} articles in ${rssElapsedSec.toFixed(1)}s (rate: ${rssRate.toFixed(1)} articles/sec)`);
 
-  // 補充搜尋：速率 < 1 篇/秒即觸發 Perplexity（表示文章數量少於搜尋耗時秒數）
+  // 補充搜尋：速率 < 1 篇/秒 或 文章數 < 20 即觸發 Perplexity
   let newsItems = rssItems;
   let rawText = rssRawText;
-  const shouldTriggerPerplexity = rssRate < 1.0;
+  const shouldTriggerPerplexity = rssRate < 1.0 || rssItems.length < 20;
   if (shouldTriggerPerplexity) {
     // 階段更新：Perplexity 補充搜尋中
     await db.update(topics).set({ collectionStage: 'perplexity_searching' }).where(eq(topics.id, topic.id));
-    console.log(`[Timeline] RSS rate ${rssRate.toFixed(1)}/sec < 1.0, triggering Perplexity supplemental search...`);
+    console.log(`[Timeline] Triggering Perplexity (rate: ${rssRate.toFixed(1)}/sec, count: ${rssItems.length})...`);
     // 第一輪：繁中搜尋
     const perplexityItems = await searchWithPerplexity(query);
     // 第二輪：英文搜尋（如果查詢是中文）
@@ -756,12 +756,11 @@ export async function buildTopicTimeline(query: string): Promise<{
       const existingUrls = new Set(rssItems.map(i => i.url));
       const newItems = allPerplexityItems.filter(i => i.url && !existingUrls.has(i.url));
       newsItems = [...rssItems, ...newItems];
-      // 重建 rawText（加入 Perplexity 文章的摘要）
-      const perplexityText = newItems
-        .map(item => `[${item.source}] ${item.title}\n${item.description}`)
-        .join('\n\n');
-      rawText = rssRawText + (perplexityText ? `\n\n--- Perplexity Supplemental ---\n${perplexityText}` : '');
       console.log(`[Timeline] After merge: ${newsItems.length} articles (${rssItems.length} RSS + ${newItems.length} Perplexity)`);
+      // 重建完整 rawText：將所有文章統一格式，方便 AI 分析
+      rawText = newsItems
+        .map((item, i) => `[${i + 1}] ${item.publishedAt} — ${item.source}\n標題: ${item.title}\n摘要: ${item.description}`)
+        .join('\n\n');
     }
   }
 
@@ -784,7 +783,8 @@ export async function buildTopicTimeline(query: string): Promise<{
   console.log(`[Timeline] Detected ${turningPointsData.length} turning points, tags: ${topicTags.join(', ')}`);
 
   // Step 5: Update topic stats + tags
-  const totalArticles = turningPointsData.reduce((sum, tp) => sum + tp.article_count, 0);
+  // 使用實際收集的文章數（而非 AI 估計值），更準確反映資料量
+  const totalArticles = newsItems.length;
   const maxMedia = Math.max(...turningPointsData.map((tp) => tp.media_count), 0);
   const maxHeat = turningPointsData.some((tp) => tp.heat_level === "extreme")
     ? "extreme"
