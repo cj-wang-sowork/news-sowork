@@ -253,3 +253,6 @@
 
 ## Sprint 36 — AI 面板 Beta badge
 - [x] 前端：AI 立場回覆面板生成按鈕旁加入「 Beta · 免費體驗」 badge
+## Sprint 37 — 社群分享 OG meta tags 優化
+- [x] 生成符合首頁文案的 OG 分享縮圖（1200x630）
+- [x] 更新 index.html 的 Open Graph 和 Twitter Card meta tags

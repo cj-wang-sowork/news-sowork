@@ -1,0 +1,30 @@
+{
+  "query": "SELECT 'topics' as tbl, COUNT(*) as cnt FROM topics UNION ALL SELECT 'news_articles', COUNT(*) FROM news_articles UNION ALL SELECT 'turning_points', COUNT(*) FROM turning_points UNION ALL SELECT 'rss_sources', COUNT(*) FROM rss_sources UNION ALL SELECT 'users', COUNT(*) FROM users;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT 'topics' as tbl, COUNT(*) as cnt FROM topics UNION ALL SELECT 'news_articles', COUNT(*) FROM news_articles UNION ALL SELECT 'turning_points', COUNT(*) FROM turning_points UNION ALL SELECT 'rss_sources', COUNT(*) FROM rss_sources UNION ALL SELECT 'users', COUNT(*) FROM users;",
+  "rows": [
+    {
+      "tbl": "topics",
+      "cnt": "58"
+    },
+    {
+      "tbl": "rss_sources",
+      "cnt": "203"
+    },
+    {
+      "tbl": "turning_points",
+      "cnt": "290"
+    },
+    {
+      "tbl": "users",
+      "cnt": "6"
+    },
+    {
+      "tbl": "news_articles",
+      "cnt": "3490"
+    }
+  ],
+  "messages": [],
+  "stdout": "tbl\tcnt\ntopics\t58\nrss_sources\t203\nturning_points\t290\nusers\t6\nnews_articles\t3490\n",
+  "stderr": "",
+  "execution_time_ms": 1609
+}

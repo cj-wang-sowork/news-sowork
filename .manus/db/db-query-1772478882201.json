@@ -1,0 +1,16 @@
+{
+  "query": "SELECT \n  (SELECT COUNT(*) FROM topics) AS topic_count,\n  (SELECT COUNT(*) FROM news_articles) AS article_count,\n  (SELECT COUNT(*) FROM turning_points) AS turning_point_count,\n  (SELECT COUNT(*) FROM rss_sources) AS rss_source_count;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2T8Yuzty3NAouPd.b9d024491cfd --database e62Q4utoyfc8BuJjv96dsP --execute SELECT \n  (SELECT COUNT(*) FROM topics) AS topic_count,\n  (SELECT COUNT(*) FROM news_articles) AS article_count,\n  (SELECT COUNT(*) FROM turning_points) AS turning_point_count,\n  (SELECT COUNT(*) FROM rss_sources) AS rss_source_count;",
+  "rows": [
+    {
+      "topic_count": "58",
+      "article_count": "3490",
+      "turning_point_count": "290",
+      "rss_source_count": "203"
+    }
+  ],
+  "messages": [],
+  "stdout": "topic_count\tarticle_count\tturning_point_count\trss_source_count\n58\t3490\t290\t203\n",
+  "stderr": "",
+  "execution_time_ms": 1570
+}
