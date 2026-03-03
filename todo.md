@@ -309,3 +309,6 @@
 
 ## Sprint 48 — OG 圖片快取機制
 - [x] /api/og/:slug endpoint 加入記憶體快取（1 小時 TTL），避免重複生成（MISS: 1.5s → HIT: 0.002s）
+
+## Sprint 49 — Navbar 品牌視覺層次調整
+- [x] 「時事軸」字體加大到 19px、字重 900，「by SoWork.ai」縮小到 8.5px 並改為淡灰色（text-gray-400）

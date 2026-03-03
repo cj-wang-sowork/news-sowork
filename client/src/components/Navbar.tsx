@@ -37,13 +37,13 @@ export default function Navbar() {
               alt="SoWork.ai"
               className="w-8 h-8 object-contain"
             />
-            <div className="flex flex-col leading-none">
-              <span className="font-display font-800 text-[15px] text-foreground tracking-tight" style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800 }}>
+            <div className="flex flex-col leading-none gap-[2px]">
+              <span className="text-[19px] text-foreground tracking-tight" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif', fontWeight: 900, letterSpacing: '-0.03em' }}>
                 時事軸
               </span>
               <span
                 onClick={e => { e.preventDefault(); e.stopPropagation(); window.open('https://tw.sowork.ai', '_blank', 'noopener,noreferrer'); }}
-                className="text-[10px] font-medium text-muted-foreground hover:text-[#FF5A1F] tracking-widest uppercase transition-colors cursor-pointer"
+                className="text-[8.5px] font-semibold text-gray-400 hover:text-[#FF5A1F] tracking-[0.14em] uppercase transition-colors cursor-pointer"
                 style={{ fontFamily: 'Sora, sans-serif' }}
               >
                 by SoWork.ai
