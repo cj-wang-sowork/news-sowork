@@ -354,3 +354,8 @@
 - [x] 加入網域黑名單（遊戲廣告、博彩、無關中國娛樂網站）
 - [x] 加入標題關鍵字黑名單（過濾廣告、娛樂、博彩等無關內容）
 - [x] 同時套用於 Google News RSS 收集和 LLM 補充搜尋
+
+## Sprint 59 — 首頁 SEO 修復
+- [x] 優化 document.title 至 30-60 字元（32 字元：「時事軸 by SoWork.ai — AI 新聞演變脈絡分析平台」）
+- [x] 加入 meta keywords 標籤（11 個核心關鍵字）
+- [x] 確認 meta description 標籤已完整設定
