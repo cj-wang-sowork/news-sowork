@@ -93,7 +93,7 @@ Return 20-40 articles from diverse sources. Only return the JSON array, nothing 
     }
 
     const rawArticles = parsed?.articles ?? [];
-    const items: NewsItem[] = rawArticles
+    const rawItems: NewsItem[] = rawArticles
       .filter(item => item.title && item.url && item.url.startsWith('http'))
       .map(item => ({
         title: item.title ?? '',
@@ -103,12 +103,84 @@ Return 20-40 articles from diverse sources. Only return the JSON array, nothing 
         description: item.description ?? '',
       }));
 
+    // Filter out junk / spam articles
+    const items = rawItems.filter(item => !isJunkArticle(item));
+    const junkCount = rawItems.length - items.length;
+    if (junkCount > 0) {
+      console.log(`[LLM-Search] Filtered out ${junkCount} junk articles (${angle})`);
+    }
+
     console.log(`[LLM-Search] Found ${items.length} supplemental articles (${angle})`);
     return items;
   } catch (err) {
     console.warn('[LLM-Search] Search failed:', (err as Error).message);
     return [];
   }
+}
+
+// ─── Spam / Junk Article Filter ─────────────────────────────────────────────
+
+/**
+ * 垃圾文章過濾：網域黑名單 + 標題關鍵字黑名單
+ * 同時適用於 Google News RSS 收集和 LLM 補充搜尋
+ */
+const DOMAIN_BLOCKLIST = [
+  // 遊戲廣告 / 博彩
+  'youxia.com', 'youxia.org', '游侠网',
+  'betway', 'casino', 'poker', 'slot',
+  // 低質量政治宣傳
+  'bannedbook.org', '禁闻网', 'epochtimes.com.tw', // 大紀元（偏激）
+  // 低質量轉載 / 娛樂
+  'creaders.net', '万维读者网',
+  // 博彩相關
+  'bodog', 'bet365', '188bet', 'w88',
+];
+
+const TITLE_BLOCKLIST_PATTERNS = [
+  // 博彩廣告
+  /娱乐.*骰宝/i,
+  /竞猜.*赚/i,
+  /模拟器.*试玩/i,
+  /揭秘最优秀的App/i,
+  /最优秀的.*App/i,
+  /注册.*领.*彩金/i,
+  /首存.*送/i,
+  /体育.*博彩/i,
+  // 廣告/推廣
+  /\[廣告\]/i,
+  /\[AD\]/i,
+  /sponsored/i,
+];
+
+function isJunkArticle(item: { title: string; url: string; source?: string }): boolean {
+  const urlLower = item.url.toLowerCase();
+  const sourceLower = (item.source ?? '').toLowerCase();
+
+  // 網域黑名單
+  for (const blocked of DOMAIN_BLOCKLIST) {
+    if (urlLower.includes(blocked.toLowerCase()) || sourceLower.includes(blocked.toLowerCase())) {
+      return true;
+    }
+  }
+
+  // 標題關鍵字黑名單
+  for (const pattern of TITLE_BLOCKLIST_PATTERNS) {
+    if (pattern.test(item.title)) {
+      return true;
+    }
+  }
+
+  // 標題過短（< 5 字）或過長（> 200 字）
+  if (item.title.trim().length < 5 || item.title.trim().length > 200) {
+    return true;
+  }
+
+  // URL 不合法（非 http/https）
+  if (!item.url.startsWith('http')) {
+    return true;
+  }
+
+  return false;
 }
 
 // ─── Google News RSS Search ───────────────────────────────────────────────────
@@ -344,10 +416,17 @@ export async function searchGoogleNews(query: string, targetCount = 100): Promis
     return true;
   });
 
-  // Sort by date (newest first)
-  deduped.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  // Filter out junk / spam articles
+  const cleaned = deduped.filter(item => !isJunkArticle(item));
+  const junkCount = deduped.length - cleaned.length;
+  if (junkCount > 0) {
+    console.log(`[GoogleNews] Filtered out ${junkCount} junk articles`);
+  }
 
-  const top = deduped.slice(0, Math.max(targetCount, 100));
+  // Sort by date (newest first)
+  cleaned.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+
+  const top = cleaned.slice(0, Math.max(targetCount, 100));
 
   // Build raw text summary for LLM (包含 URL 讓 AI 能引用真實連結)
   const rawText = top
