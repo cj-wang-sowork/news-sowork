@@ -298,6 +298,7 @@ export default function Home() {
     <div className="min-h-screen bg-[#FAFAFA]">
       <Helmet>
         <title>時事軸 by SoWork.ai — AI 新聞演變脈絡分析平台</title>
+        <link rel="canonical" href="https://newsflow.sowork.ai" />
         <meta name="keywords" content="時事軸,SoWork,AI新聞,新聞軸線,新聞聚合,全球新聞,新聞追蹤,轉折點分析,台灣新聞,國際新聞,新聞演變" />
         <meta name="description" content="AI 自動聚合全球新聞，標記重大轉折點，讓你在 30 秒內掌握一個事件的完整演變——而不是淹沒在千篇報導中。SoWork.ai 旗下產品。" />
       </Helmet>

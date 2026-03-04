@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'wouter';
 import {
   ArrowLeft, Globe, Lock, Zap, Loader2, AlertCircle,
@@ -144,6 +145,12 @@ export default function CreateTopic() {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
+      <Helmet>
+        <title>建立議題 — 時事軸 by SoWork.ai</title>
+        <link rel="canonical" href="https://newsflow.sowork.ai/create-topic" />
+        <meta name="description" content="建立新的新聞議題，讓 AI 自動聚合相關報導并分析轉折點。" />
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <Navbar />
 
       <div className="container py-10 max-w-xl">

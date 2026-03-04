@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'wouter';
 import {
   Bookmark, BookmarkCheck, Pin, PinOff, ArrowRight,
@@ -97,6 +98,12 @@ export default function MyTopics() {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
+      <Helmet>
+        <title>我的議題 — 時事軸 by SoWork.ai</title>
+        <link rel="canonical" href="https://newsflow.sowork.ai/my-topics" />
+        <meta name="description" content="管理您追蹤的新聞議題，查看 AI 分析的轉折點和最新報導。" />
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <Navbar />
 
       {/* Page Header */}

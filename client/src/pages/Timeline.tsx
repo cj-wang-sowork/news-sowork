@@ -1053,6 +1053,7 @@ export default function Timeline() {
     <div className="min-h-screen bg-[#FAFAFA]">
       <Helmet>
         <title>{pageTitle}</title>
+        <link rel="canonical" href={pageUrl} />
         <meta name="description" content={pageDesc} />
         <meta property="og:type" content="article" />
         <meta property="og:title" content={pageTitle} />

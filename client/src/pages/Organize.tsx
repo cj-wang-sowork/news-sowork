@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'wouter';
 import {
   DndContext,
@@ -291,6 +292,12 @@ export default function Organize() {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
+      <Helmet>
+        <title>整理議題 — 時事軸 by SoWork.ai</title>
+        <link rel="canonical" href="https://newsflow.sowork.ai/organize" />
+        <meta name="description" content="整理和合併相似的新聞議題，讓您的新聞追蹤更清晰有條理。" />
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <Navbar />
 
       <div className="container py-10">

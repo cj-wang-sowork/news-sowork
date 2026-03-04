@@ -359,3 +359,8 @@
 - [x] 優化 document.title 至 30-60 字元（32 字元：「時事軸 by SoWork.ai — AI 新聞演變脈絡分析平台」）
 - [x] 加入 meta keywords 標籤（11 個核心關鍵字）
 - [x] 確認 meta description 標籤已完整設定
+
+## Sprint 60 — Canonical URL
+- [x] 首頁加入 canonical URL（https://newsflow.sowork.ai）
+- [x] 議題時間軸頁面加入動態 canonical URL（https://newsflow.sowork.ai/timeline/:slug）
+- [x] MyTopics、Organize、CreateTopic 頁面加入 canonical URL + noindex
