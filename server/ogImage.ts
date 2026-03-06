@@ -11,6 +11,8 @@ interface OgImageOptions {
   category?: string | null;
   articleCount?: number;
   mediaCount?: number;
+  comment?: string | null;  // 個人觀點（顯示在 OG 圖片中）
+  authorName?: string | null; // 分享者姓名
 }
 
 /** Escape XML special characters for safe SVG embedding */
@@ -60,7 +62,7 @@ function wrapText(text: string, maxCharsPerLine: number): string[] {
 }
 
 export async function generateOgImage(options: OgImageOptions): Promise<Buffer> {
-  const { title, category, articleCount = 0, mediaCount = 0 } = options;
+  const { title, category, articleCount = 0, mediaCount = 0, comment, authorName } = options;
 
   const W = 1200;
   const H = 630;
@@ -147,6 +149,23 @@ export async function generateOgImage(options: OgImageOptions): Promise<Buffer> 
 
   <!-- Stats -->
   ${statsSection}
+
+  <!-- Comment / Personal Opinion (if provided) -->
+  ${comment ? (() => {
+    const commentLines = wrapText(comment, 38);
+    const commentStartY = H - 60 - (commentLines.length * 28) - 20;
+    const commentSvg = commentLines.map((line, i) =>
+      `<text x="144" y="${commentStartY + i * 28}" font-size="22" fill="rgba(255,255,255,0.85)" font-family="'Noto Sans TC', 'PingFang TC', sans-serif" font-style="italic">${escapeXml(line)}</text>`
+    ).join('\n');
+    const authorLabel = authorName ? `<text x="144" y="${commentStartY - 28}" font-size="18" fill="rgba(255,90,31,0.9)" font-family="'Sora', 'Noto Sans TC', sans-serif" font-weight="700">${escapeXml(authorName)} 的觀點</text>` : '';
+    const boxH = commentLines.length * 28 + 60;
+    const boxY = commentStartY - 48;
+    return `
+  <rect x="100" y="${boxY}" width="${W - 200}" height="${boxH}" rx="12" fill="rgba(255,90,31,0.12)" stroke="rgba(255,90,31,0.3)" stroke-width="1"/>
+  <line x1="120" y1="${boxY + 10}" x2="120" y2="${boxY + boxH - 10}" stroke="#FF5A1F" stroke-width="3" stroke-linecap="round"/>
+  ${authorLabel}
+  ${commentSvg}`;
+  })() : ''}
 
   <!-- Bottom bar -->
   <rect x="0" y="${H - 60}" width="${W}" height="60" fill="rgba(255,90,31,0.12)"/>

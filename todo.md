@@ -364,3 +364,9 @@
 - [x] 首頁加入 canonical URL（https://newsflow.sowork.ai）
 - [x] 議題時間軸頁面加入動態 canonical URL（https://newsflow.sowork.ai/timeline/:slug）
 - [x] MyTopics、Organize、CreateTopic 頁面加入 canonical URL + noindex
+
+## Sprint 61 — Facebook 分享 OG 標籤 + 個人觀點分享功能
+- [x] 後端 SSR meta 注入：偵測 Facebook 爬蟲 UA，動態將議題標題/描述/OG 圖片注入 HTML
+- [x] OG 圖片支援 comment + author 參數，在圖片底部顯示個人觀點引言框
+- [x] 分享對話框：輸入觀點後即時預覽 OG 圖片，生成帶有觀點的分享連結
+- [x] 支援不含觀點的純連結分享

@@ -15,6 +15,14 @@ import {
 } from 'lucide-react';
 import { Streamdown } from 'streamdown';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import Navbar from '@/components/Navbar';
 import { trpc } from '@/lib/trpc';
 import { useAuth } from '@/_core/hooks/useAuth';
@@ -800,64 +808,148 @@ function AIResponsePanel({
   );
 }
 
-//// ─── ShareButton: Web Share API on mobile, copy link on desktop ─────────────────────
-function ShareButton({ title, url }: { title: string; url: string }) {
-  const [copied, setCopied] = useState(false);
+//// ─── ShareButton: 分享對話框（支援個人觀點輸入） ─────────────────────
+function ShareButton({ title, url, authorName, slug }: { title: string; url: string; authorName?: string; slug: string }) {
+  const [open, setOpen] = useState(false);
+  const [comment, setComment] = useState('');
+  const [copied, setCopied] = useState<'plain' | 'comment' | null>(null);
+  const MAX_COMMENT = 120;
 
-  const handleShare = async () => {
+  // Build share URL with optional comment
+  const buildShareUrl = (withComment: boolean) => {
+    if (!withComment || !comment.trim()) return url;
+    const params = new URLSearchParams();
+    params.set('comment', comment.trim());
+    if (authorName) params.set('author', authorName);
+    return `${url}?${params.toString()}`;
+  };
+
+  const copyToClipboard = async (text: string, type: 'plain' | 'comment') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(type);
+      setTimeout(() => setCopied(null), 2500);
+    } catch {
+      window.prompt('請複製以下連結：', text);
+    }
+  };
+
+  const handleDirectShare = async () => {
+    const shareUrl = buildShareUrl(false);
     const shareText = `「${title}」的完整新聞演變脈絡 — 時事軸 by SoWork.ai`;
-    // Use Web Share API if available (mobile browsers)
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: `「${title}」 — 時事軸`,
-          text: shareText,
-          url,
-        });
+        await navigator.share({ title: `「${title}」 — 時事軸`, text: shareText, url: shareUrl });
       } catch (err) {
-        // User cancelled or error — do nothing
-        if ((err as Error).name !== 'AbortError') {
-          console.warn('Share failed:', err);
-        }
+        if ((err as Error).name !== 'AbortError') setOpen(true);
       }
     } else {
-      // Desktop fallback: copy to clipboard
-      try {
-        await navigator.clipboard.writeText(`${shareText}\n${url}`);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
-      } catch {
-        // Last resort: prompt
-        window.prompt('請複製以下連結：', url);
-      }
+      setOpen(true);
     }
   };
 
   return (
-    <button
-      onClick={handleShare}
-      title="分享此議題"
-      className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
-        copied
-          ? 'bg-green-50 border-green-400 text-green-700'
-          : 'bg-white border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F] hover:bg-[#FFF0EB]'
-      }`}
-    >
-      {copied ? (
-        <>✓ 已複製連結</>
-      ) : (
-        <>
-          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="18" cy="5" r="3" />
-            <circle cx="6" cy="12" r="3" />
-            <circle cx="18" cy="19" r="3" />
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-          </svg>
-          分享
-        </>
-      )}
-    </button>
+    <>
+      <button
+        onClick={handleDirectShare}
+        title="分享此議題"
+        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all bg-white border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F] hover:bg-[#FFF0EB]"
+      >
+        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+        </svg>
+        分享
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">分享此議題</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              可選擇加入你的個人觀點，讓分享內容更吸引人點擊。
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* 議題標題預覽 */}
+          <div className="bg-muted/40 rounded-lg p-3 text-sm text-foreground font-medium border border-border">
+            「{title}」
+          </div>
+
+          {/* 個人觀點輸入框 */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">
+              你的觀點（選填）
+            </label>
+            <Textarea
+              value={comment}
+              onChange={e => setComment(e.target.value.slice(0, MAX_COMMENT))}
+              placeholder="例：這件事很重要，因為……"
+              rows={3}
+              className="resize-none text-sm"
+            />
+            <p className="text-xs text-muted-foreground text-right">{comment.length} / {MAX_COMMENT}</p>
+          </div>
+
+          {/* 分享選項 */}
+          <div className="space-y-2 pt-1">
+            {comment.trim() && (
+              <button
+                onClick={() => copyToClipboard(buildShareUrl(true), 'comment')}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${
+                  copied === 'comment'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-[#FF5A1F] hover:bg-[#e04d18] text-white'
+                }`}
+              >
+                {copied === 'comment' ? (
+                  <>✓ 已複製含觀點的連結</>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="18" cy="5" r="3" />
+                      <circle cx="6" cy="12" r="3" />
+                      <circle cx="18" cy="19" r="3" />
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                    </svg>
+                    複製含觀點的分享連結
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              onClick={() => copyToClipboard(buildShareUrl(false), 'plain')}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium border transition-all ${
+                copied === 'plain'
+                  ? 'bg-green-50 border-green-400 text-green-700'
+                  : 'bg-white border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F]'
+              }`}
+            >
+              {copied === 'plain' ? '✓ 已複製連結' : '複製連結（不含觀點）'}
+            </button>
+
+            {/* 預覽分享圖片 */}
+            {comment.trim() && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-xs text-muted-foreground mb-2">分享到 Facebook 時的圖片預覽：</p>
+                <div className="rounded-lg overflow-hidden border border-border">
+                  <img
+                    src={`/api/og/${encodeURIComponent(slug)}?comment=${encodeURIComponent(comment.trim().slice(0, 120))}${authorName ? `&author=${encodeURIComponent(authorName)}` : ''}`}
+                    alt="OG 圖片預覽"
+                    className="w-full h-auto"
+                    style={{ aspectRatio: '1200/630' }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -869,7 +961,7 @@ export default function Timeline() {
   const [selectedPoint, setSelectedPoint] = useState<RealTurningPoint | null>(null);
   const [aiAutoOpened, setAiAutoOpened] = useState(false);
   const [pageShareCopied, setPageShareCopied] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const utils = trpc.useUtils();
   // Fetch real timeline data from API
   const { data, isLoading, error } = trpc.topics.getTimeline.useQuery(
@@ -1149,8 +1241,8 @@ export default function Timeline() {
                     {isSubscribed ? '🔔 通知已開' : '🔕 開啟通知'}
                   </button>
                 )}
-                {/* Share Button — Web Share API on mobile, copy link on desktop */}
-                <ShareButton title={topic.query} url={pageUrl} />
+                {/* Share Button — 分享對話框（支援個人觀點） */}
+                <ShareButton title={topic.query} url={pageUrl} slug={slug} authorName={user?.name ?? undefined} />
               </div>
             </div>
           </div>
