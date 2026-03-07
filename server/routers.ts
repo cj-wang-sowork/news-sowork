@@ -810,6 +810,65 @@ ${input.topicCategory ? `分類：${input.topicCategory}` : ''}
         }
       }),
 
+    // 生成分享論點建議（供用戶分享時選用）
+    generateShareOpinions: publicProcedure
+      .input(z.object({
+        topicTitle: z.string().min(1).max(256),
+        topicSummary: z.string().max(2000).optional(),
+        turningPoints: z.array(z.string()).max(10).optional(),
+      }))
+      .query(async ({ input }) => {
+        const { invokeLLM } = await import('./_core/llm');
+        const tpContext = input.turningPoints && input.turningPoints.length > 0
+          ? `\n重大轉折點：\n${input.turningPoints.slice(0, 5).map((tp, i) => `${i + 1}. ${tp}`).join('\n')}`
+          : '';
+        const prompt = `你是一個台灣新語評論員。
+以下是一則新語議題：
+標題：${input.topicTitle}
+${input.topicSummary ? `摘要：${input.topicSummary}` : ''}${tpContext}
+
+請針對此議題，生成 4 個不同角度的個人觀點，供讀者在分享新語時選用。
+
+要求：
+1. 每個觀點 25-40 個字，簡潔有力
+2. 涵蓋不同立場（支持、質疑、中立分析、長遠影響）
+3. 語氣自然，像真實讀者的個人感想
+4. 用繁體中文
+5. 不要以「我」開頭，用「這」、「此」、「台灣」、「值得」等開頭
+
+回傳 JSON 格式：{"opinions": ["...", "...", "...", "..."]}
+只回傳 JSON，不要其他文字。`;
+        try {
+          const result = await invokeLLM({
+            messages: [
+              { role: 'system', content: '你是一個台灣新語評論員，回傳格式為 JSON。' },
+              { role: 'user', content: prompt },
+            ],
+            response_format: {
+              type: 'json_schema',
+              json_schema: {
+                name: 'share_opinions',
+                strict: true,
+                schema: {
+                  type: 'object',
+                  properties: {
+                    opinions: { type: 'array', items: { type: 'string' } },
+                  },
+                  required: ['opinions'],
+                  additionalProperties: false,
+                },
+              },
+            },
+          });
+          const rawContent = result.choices?.[0]?.message?.content;
+          const content = typeof rawContent === 'string' ? rawContent : '{"opinions":[]}';
+          const parsed = JSON.parse(content);
+          return { opinions: (parsed.opinions as string[]).slice(0, 4) };
+        } catch {
+          return { opinions: [] };
+        }
+      }),
+
     // 對話式修改已生成內容
     refineContent: protectedProcedure
       .input(z.object({

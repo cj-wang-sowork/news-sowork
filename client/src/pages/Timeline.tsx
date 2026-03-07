@@ -809,11 +809,33 @@ function AIResponsePanel({
 }
 
 //// ─── ShareButton: 分享對話框（支援個人觀點輸入） ─────────────────────
-function ShareButton({ title, url, authorName, slug }: { title: string; url: string; authorName?: string; slug: string }) {
+function ShareButton({ title, url, authorName, slug, turningPointTitles = [] }: {
+  title: string;
+  url: string;
+  authorName?: string;
+  slug: string;
+  turningPointTitles?: string[];
+}) {
   const [open, setOpen] = useState(false);
   const [comment, setComment] = useState('');
-  const [copied, setCopied] = useState<'plain' | 'comment' | null>(null);
+  const [copied, setCopied] = useState<'plain' | 'comment' | 'fb' | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const MAX_COMMENT = 120;
+
+  // AI 論點生成
+  const {
+    data: opinionsData,
+    isLoading: opinionsLoading,
+    refetch: refetchOpinions,
+    isFetched: opinionsFetched,
+  } = trpc.ai.generateShareOpinions.useQuery(
+    { topicTitle: title, turningPoints: turningPointTitles.slice(0, 5) },
+    { enabled: false }  // 手動觸發
+  );
+
+  const handleGenerateOpinions = () => {
+    void refetchOpinions();
+  };
 
   // Build share URL with optional comment
   const buildShareUrl = (withComment: boolean) => {
@@ -834,9 +856,17 @@ function ShareButton({ title, url, authorName, slug }: { title: string; url: str
     }
   };
 
+  const handleFacebookShare = () => {
+    const shareUrl = buildShareUrl(!!comment.trim());
+    const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+    window.open(fbUrl, '_blank', 'width=600,height=400,noopener,noreferrer');
+    setCopied('fb');
+    setTimeout(() => setCopied(null), 3000);
+  };
+
   const handleDirectShare = async () => {
     const shareUrl = buildShareUrl(false);
-    const shareText = `「${title}」的完整新聞演變脈絡 — 時事軸 by SoWork.ai`;
+    const shareText = `「${title}」的完整新語演變脈絡 — 時事軸 by SoWork.ai`;
     if (navigator.share) {
       try {
         await navigator.share({ title: `「${title}」 — 時事軸`, text: shareText, url: shareUrl });
@@ -847,6 +877,10 @@ function ShareButton({ title, url, authorName, slug }: { title: string; url: str
       setOpen(true);
     }
   };
+
+  const ogImageUrl = comment.trim()
+    ? `/api/og/${encodeURIComponent(slug)}?comment=${encodeURIComponent(comment.trim().slice(0, 120))}${authorName ? `&author=${encodeURIComponent(authorName)}` : ''}`
+    : `/api/og/${encodeURIComponent(slug)}`;
 
   return (
     <>
@@ -866,11 +900,11 @@ function ShareButton({ title, url, authorName, slug }: { title: string; url: str
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-base font-bold">分享此議題</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
-              可選擇加入你的個人觀點，讓分享內容更吸引人點擊。
+              加入你的觀點，讓分享內容更吸引人點擊。
             </DialogDescription>
           </DialogHeader>
 
@@ -879,72 +913,113 @@ function ShareButton({ title, url, authorName, slug }: { title: string; url: str
             「{title}」
           </div>
 
-          {/* 個人觀點輸入框 */}
+          {/* AI 論點區塊 */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              你的觀點（選填）
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">你的觀點（選填）</label>
+              <button
+                onClick={handleGenerateOpinions}
+                disabled={opinionsLoading}
+                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-[#FF5A1F]/40 text-[#FF5A1F] hover:bg-[#FFF0EB] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {opinionsLoading ? (
+                  <><Loader2 className="w-3 h-3 animate-spin" />生成中…</>
+                ) : (
+                  <><Sparkles className="w-3 h-3" />AI 幫我想論點</>
+                )}
+              </button>
+            </div>
+
+            {/* AI 論點按鈕 */}
+            {opinionsFetched && opinionsData && opinionsData.opinions.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                {opinionsData.opinions.map((op, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setComment(op.slice(0, MAX_COMMENT))}
+                    className={`text-left text-xs px-3 py-2 rounded-lg border transition-all ${
+                      comment === op.slice(0, MAX_COMMENT)
+                        ? 'border-[#FF5A1F] bg-[#FFF0EB] text-[#FF5A1F]'
+                        : 'border-border bg-muted/30 text-muted-foreground hover:border-[#FF5A1F]/50 hover:text-foreground'
+                    }`}
+                  >
+                    {op}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <Textarea
               value={comment}
               onChange={e => setComment(e.target.value.slice(0, MAX_COMMENT))}
-              placeholder="例：這件事很重要，因為……"
+              placeholder="點擊上方「AI 幫我想論點」自動生成，或自行輸入…"
               rows={3}
               className="resize-none text-sm"
             />
             <p className="text-xs text-muted-foreground text-right">{comment.length} / {MAX_COMMENT}</p>
           </div>
 
-          {/* 分享選項 */}
-          <div className="space-y-2 pt-1">
-            {comment.trim() && (
-              <button
-                onClick={() => copyToClipboard(buildShareUrl(true), 'comment')}
-                className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${
-                  copied === 'comment'
-                    ? 'bg-green-500 text-white'
-                    : 'bg-[#FF5A1F] hover:bg-[#e04d18] text-white'
-                }`}
-              >
-                {copied === 'comment' ? (
-                  <>✓ 已複製含觀點的連結</>
-                ) : (
-                  <>
-                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="18" cy="5" r="3" />
-                      <circle cx="6" cy="12" r="3" />
-                      <circle cx="18" cy="19" r="3" />
-                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                    </svg>
-                    複製含觀點的分享連結
-                  </>
-                )}
-              </button>
-            )}
+          {/* OG 圖片預覽切換 */}
+          <div className="border-t border-border pt-3">
             <button
-              onClick={() => copyToClipboard(buildShareUrl(false), 'plain')}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium border transition-all ${
-                copied === 'plain'
-                  ? 'bg-green-50 border-green-400 text-green-700'
-                  : 'bg-white border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F]'
-              }`}
+              onClick={() => setShowPreview(v => !v)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              {copied === 'plain' ? '✓ 已複製連結' : '複製連結（不含觀點）'}
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              {showPreview ? '收起分享圖片預覽' : '預覽分享到 Facebook 的圖片'}
+            </button>
+            {showPreview && (
+              <div className="mt-2 rounded-lg overflow-hidden border border-border">
+                <img
+                  src={ogImageUrl}
+                  alt="OG 圖片預覽"
+                  className="w-full h-auto"
+                  style={{ aspectRatio: '1200/630' }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 分享按鈕區 */}
+          <div className="space-y-2">
+            {/* Facebook 分享按鈕 */}
+            <button
+              onClick={handleFacebookShare}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all bg-[#1877F2] hover:bg-[#166FE5] text-white"
+            >
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+              </svg>
+              分享到 Facebook
             </button>
 
-            {/* 預覽分享圖片 */}
-            {comment.trim() && (
-              <div className="mt-3 pt-3 border-t border-border">
-                <p className="text-xs text-muted-foreground mb-2">分享到 Facebook 時的圖片預覽：</p>
-                <div className="rounded-lg overflow-hidden border border-border">
-                  <img
-                    src={`/api/og/${encodeURIComponent(slug)}?comment=${encodeURIComponent(comment.trim().slice(0, 120))}${authorName ? `&author=${encodeURIComponent(authorName)}` : ''}`}
-                    alt="OG 圖片預覽"
-                    className="w-full h-auto"
-                    style={{ aspectRatio: '1200/630' }}
-                  />
-                </div>
-              </div>
+            {/* 複製連結按鈕 */}
+            {comment.trim() ? (
+              <button
+                onClick={() => copyToClipboard(buildShareUrl(true), 'comment')}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all border ${
+                  copied === 'comment'
+                    ? 'bg-green-50 border-green-400 text-green-700'
+                    : 'bg-[#FF5A1F] hover:bg-[#e04d18] text-white border-transparent'
+                }`}
+              >
+                {copied === 'comment' ? '✓ 已複製含觀點的連結' : '複製含觀點的分享連結'}
+              </button>
+            ) : (
+              <button
+                onClick={() => copyToClipboard(buildShareUrl(false), 'plain')}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium border transition-all ${
+                  copied === 'plain'
+                    ? 'bg-green-50 border-green-400 text-green-700'
+                    : 'bg-white border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F]'
+                }`}
+              >
+                {copied === 'plain' ? '✓ 已複製連結' : '複製連結'}
+              </button>
             )}
           </div>
         </DialogContent>
@@ -1241,8 +1316,14 @@ export default function Timeline() {
                     {isSubscribed ? '🔔 通知已開' : '🔕 開啟通知'}
                   </button>
                 )}
-                {/* Share Button — 分享對話框（支援個人觀點） */}
-                <ShareButton title={topic.query} url={pageUrl} slug={slug} authorName={user?.name ?? undefined} />
+                {/* Share Button — 分享對話框（支援個人觀點 + AI 論點） */}
+                <ShareButton
+                  title={topic.query}
+                  url={pageUrl}
+                  slug={slug}
+                  authorName={user?.name ?? undefined}
+                  turningPointTitles={turningPoints.map(tp => tp.title)}
+                />
               </div>
             </div>
           </div>

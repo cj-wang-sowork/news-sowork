@@ -1,182 +1,302 @@
 /**
- * OG Image Generator
- * Generates 1200×630 PNG images for social sharing using sharp + SVG
- * Design: Dark gradient background, orange lightning bolt, topic title, SoWork.ai branding
+ * OG Image Generator (v2 — Satori-based)
+ * Generates 1200×630 PNG images for social sharing using Satori + @resvg/resvg-js
+ * Supports embedded Chinese fonts (Noto Sans TC) via CDN, no system font dependency.
+ * Design: Dark gradient background, orange accent, topic title, CTA text, SoWork.ai branding
+ *
+ * NOTE: Satori requires ALL multi-child divs to have display: flex.
  */
 
-import sharp from 'sharp';
+import satori from 'satori';
+import { Resvg } from '@resvg/resvg-js';
+import https from 'https';
 
-interface OgImageOptions {
+// ─── Font CDN URLs ────────────────────────────────────────────────────────────
+const FONT_CDN = {
+  regular: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/NotoSansTC-Regular_ed095abc.ttf',
+  bold: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/NotoSansTC-Bold_0c677029.ttf',
+  black: 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/NotoSansTC-Black_969d9301.ttf',
+};
+
+// ─── In-process font cache ────────────────────────────────────────────────────
+let fontCache: { regular: Buffer; bold: Buffer; black: Buffer } | null = null;
+
+function downloadBuffer(url: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
+async function getFonts() {
+  if (fontCache) return fontCache;
+  console.log('[OG Image] Downloading fonts from CDN...');
+  const [regular, bold, black] = await Promise.all([
+    downloadBuffer(FONT_CDN.regular),
+    downloadBuffer(FONT_CDN.bold),
+    downloadBuffer(FONT_CDN.black),
+  ]);
+  fontCache = { regular, bold, black };
+  console.log('[OG Image] Fonts cached successfully');
+  return fontCache;
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+export interface OgImageOptions {
   title: string;
   category?: string | null;
   articleCount?: number;
   mediaCount?: number;
-  comment?: string | null;  // 個人觀點（顯示在 OG 圖片中）
-  authorName?: string | null; // 分享者姓名
+  comment?: string | null;
+  authorName?: string | null;
 }
 
-/** Escape XML special characters for safe SVG embedding */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+// ─── Helper: create a simple text node ───────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function text(content: string, style: Record<string, unknown>): any {
+  return {
+    type: 'div',
+    props: { style: { display: 'flex', ...style }, children: content }
+  };
 }
 
-/** Wrap text into multiple lines based on max chars per line */
-function wrapText(text: string, maxCharsPerLine: number): string[] {
-  if (text.length <= maxCharsPerLine) return [text];
-  const lines: string[] = [];
-  let remaining = text;
-  while (remaining.length > 0) {
-    if (remaining.length <= maxCharsPerLine) {
-      lines.push(remaining);
-      break;
-    }
-    // Try to break at a space or punctuation
-    let breakAt = maxCharsPerLine;
-    const slice = remaining.slice(0, maxCharsPerLine + 1);
-    const spaceIdx = slice.lastIndexOf(' ');
-    const punctIdx = Math.max(
-      slice.lastIndexOf('，'),
-      slice.lastIndexOf('。'),
-      slice.lastIndexOf('、'),
-      slice.lastIndexOf('：'),
-    );
-    if (punctIdx > maxCharsPerLine * 0.5) breakAt = punctIdx + 1;
-    else if (spaceIdx > maxCharsPerLine * 0.5) breakAt = spaceIdx + 1;
-
-    lines.push(remaining.slice(0, breakAt));
-    remaining = remaining.slice(breakAt).trim();
-    if (lines.length >= 3) {
-      // Max 3 lines, truncate with ellipsis
-      if (remaining.length > 0) {
-        lines[2] = lines[2].slice(0, maxCharsPerLine - 1) + '…';
-      }
-      break;
-    }
-  }
-  return lines;
-}
-
+// ─── Main generator ───────────────────────────────────────────────────────────
 export async function generateOgImage(options: OgImageOptions): Promise<Buffer> {
   const { title, category, articleCount = 0, mediaCount = 0, comment, authorName } = options;
 
-  const W = 1200;
-  const H = 630;
+  const fonts = await getFonts();
 
-  // Wrap title text (Chinese chars ~18 per line at large font)
-  const titleLines = wrapText(title, 18);
-  const titleFontSize = titleLines.length === 1 ? 72 : titleLines.length === 2 ? 62 : 52;
-  const titleLineHeight = titleFontSize * 1.35;
-  const titleStartY = 220 - (titleLines.length - 1) * titleLineHeight * 0.5;
+  const displayTitle = title.length > 22 ? title.slice(0, 21) + '…' : title;
+  const titleFontSize = displayTitle.length <= 8 ? 80 : displayTitle.length <= 14 ? 68 : displayTitle.length <= 18 ? 60 : 52;
 
-  const titleSvgLines = titleLines
-    .map((line, i) =>
-      `<text x="120" y="${titleStartY + i * titleLineHeight}" font-size="${titleFontSize}" font-weight="800" fill="white" font-family="'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif" letter-spacing="-1">${escapeXml(line)}</text>`
-    )
-    .join('\n');
+  const statsText = [
+    articleCount > 0 ? `${articleCount} 篇報導` : '',
+    mediaCount > 0 ? `${mediaCount} 家媒體` : '',
+  ].filter(Boolean).join('  ·  ');
 
-  const categoryBadge = category
-    ? `<rect x="120" y="130" width="${category.length * 22 + 32}" height="38" rx="8" fill="#FF5A1F" opacity="0.9"/>
-       <text x="136" y="155" font-size="20" font-weight="700" fill="white" font-family="'Noto Sans TC', sans-serif">${escapeXml(category)}</text>`
-    : '';
+  const displayComment = comment
+    ? (comment.length > 55 ? comment.slice(0, 53) + '…' : comment)
+    : null;
 
-  const statsY = titleStartY + titleLines.length * titleLineHeight + 40;
-  const statsSection = (articleCount > 0 || mediaCount > 0)
-    ? `<text x="120" y="${statsY}" font-size="26" fill="rgba(255,255,255,0.7)" font-family="'Sora', 'Noto Sans TC', sans-serif">
-         ${articleCount > 0 ? `${articleCount} 篇報導` : ''}${articleCount > 0 && mediaCount > 0 ? '  ·  ' : ''}${mediaCount > 0 ? `${mediaCount} 家媒體` : ''}
-       </text>`
-    : '';
+  // ─── Build element tree ───────────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const root: any = {
+    type: 'div',
+    props: {
+      style: {
+        width: '1200px',
+        height: '630px',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'linear-gradient(135deg, #0F0F0F 0%, #1A1A1A 55%, #2A1508 100%)',
+        fontFamily: 'Noto Sans TC',
+        position: 'relative',
+        overflow: 'hidden',
+      },
+      children: [
+        // ── Top brand bar ──
+        {
+          type: 'div',
+          props: {
+            style: {
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              padding: '28px 60px 0',
+              gap: '10px',
+            },
+            children: [
+              // Brand icon
+              {
+                type: 'div',
+                props: {
+                  style: {
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '34px',
+                    height: '34px',
+                    background: '#FF5A1F',
+                    borderRadius: '8px',
+                    fontSize: '18px',
+                    color: 'white',
+                    fontWeight: 900,
+                  },
+                  children: '⚡'
+                }
+              },
+              text('時事軸', { fontSize: '22px', fontWeight: 700, color: 'white' }),
+              text('by SoWork.ai', { fontSize: '17px', color: 'rgba(255,255,255,0.4)' }),
+              // Spacer
+              { type: 'div', props: { style: { display: 'flex', flex: 1 }, children: [] } },
+              // Category badge
+              ...(category ? [{
+                type: 'div',
+                props: {
+                  style: {
+                    display: 'flex',
+                    background: 'rgba(255,90,31,0.18)',
+                    border: '1px solid rgba(255,90,31,0.4)',
+                    borderRadius: '6px',
+                    padding: '4px 14px',
+                    fontSize: '15px',
+                    color: '#FF8050',
+                    fontWeight: 700,
+                  },
+                  children: category
+                }
+              }] : []),
+            ]
+          }
+        },
+        // ── Divider ──
+        {
+          type: 'div',
+          props: {
+            style: {
+              display: 'flex',
+              margin: '18px 60px 0',
+              height: '1px',
+              background: 'rgba(255,255,255,0.07)',
+            },
+            children: []
+          }
+        },
+        // ── Main content (flex: 1) ──
+        {
+          type: 'div',
+          props: {
+            style: {
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              padding: '32px 60px 0',
+              gap: '0',
+            },
+            children: [
+              // Title
+              text(displayTitle, {
+                fontSize: `${titleFontSize}px`,
+                fontWeight: 900,
+                color: 'white',
+                lineHeight: 1.25,
+                letterSpacing: '-1px',
+                marginBottom: '18px',
+              }),
+              // Stats
+              ...(statsText ? [text(statsText, {
+                fontSize: '24px',
+                color: 'rgba(255,255,255,0.5)',
+                fontWeight: 400,
+                marginBottom: displayComment ? '22px' : '28px',
+              })] : []),
+              // Comment box
+              ...(displayComment ? [{
+                type: 'div',
+                props: {
+                  style: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    background: 'rgba(255,90,31,0.1)',
+                    border: '1px solid rgba(255,90,31,0.3)',
+                    borderLeft: '4px solid #FF5A1F',
+                    borderRadius: '10px',
+                    padding: '14px 18px',
+                    marginBottom: '22px',
+                    gap: '6px',
+                  },
+                  children: [
+                    ...(authorName ? [text(`${authorName} 的觀點`, {
+                      fontSize: '15px',
+                      color: '#FF8050',
+                      fontWeight: 700,
+                    })] : []),
+                    text(`「${displayComment}」`, {
+                      fontSize: '20px',
+                      color: 'rgba(255,255,255,0.82)',
+                      fontWeight: 400,
+                      fontStyle: 'italic',
+                    }),
+                  ]
+                }
+              }] : []),
+              // CTA
+              {
+                type: 'div',
+                props: {
+                  style: {
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: '8px',
+                  },
+                  children: [
+                    text('追蹤完整新聞脈絡', {
+                      fontSize: '20px',
+                      color: '#FF7A3F',
+                      fontWeight: 700,
+                    }),
+                    text('→', {
+                      fontSize: '20px',
+                      color: '#FF7A3F',
+                      fontWeight: 700,
+                    }),
+                  ]
+                }
+              },
+            ]
+          }
+        },
+        // ── Bottom bar ──
+        {
+          type: 'div',
+          props: {
+            style: {
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: '56px',
+              background: 'rgba(255,90,31,0.09)',
+              borderTop: '1px solid rgba(255,90,31,0.22)',
+              padding: '0 60px',
+            },
+            children: [
+              text('newsflow.sowork.ai', {
+                fontSize: '17px',
+                color: 'rgba(255,255,255,0.38)',
+              }),
+              text('看見新聞的演變脈絡', {
+                fontSize: '17px',
+                color: 'rgba(255,90,31,0.65)',
+                fontWeight: 700,
+              }),
+            ]
+          }
+        },
+      ]
+    }
+  };
 
-  // SoWork.ai lightning bolt SVG path (simplified)
-  // The bolt is drawn as a polygon shape
-  const boltPath = 'M 55 0 L 20 45 L 42 45 L 18 90 L 72 35 L 48 35 Z';
+  // ─── Render ───────────────────────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const svg = await satori(root as any, {
+    width: 1200,
+    height: 630,
+    fonts: [
+      { name: 'Noto Sans TC', data: fonts.regular, weight: 400, style: 'normal' },
+      { name: 'Noto Sans TC', data: fonts.bold, weight: 700, style: 'normal' },
+      { name: 'Noto Sans TC', data: fonts.black, weight: 900, style: 'normal' },
+    ],
+  });
 
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <!-- Dark gradient background -->
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0F0F0F;stop-opacity:1" />
-      <stop offset="60%" style="stop-color:#1A1A1A;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#2A1A0A;stop-opacity:1" />
-    </linearGradient>
-    <!-- Orange glow -->
-    <radialGradient id="glow" cx="85%" cy="50%" r="40%">
-      <stop offset="0%" style="stop-color:#FF5A1F;stop-opacity:0.25" />
-      <stop offset="100%" style="stop-color:#FF5A1F;stop-opacity:0" />
-    </radialGradient>
-    <!-- Bolt gradient -->
-    <linearGradient id="boltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FF7A3F" />
-      <stop offset="100%" style="stop-color:#E04010" />
-    </linearGradient>
-  </defs>
-
-  <!-- Background -->
-  <rect width="${W}" height="${H}" fill="url(#bg)"/>
-  <rect width="${W}" height="${H}" fill="url(#glow)"/>
-
-  <!-- Decorative grid lines (subtle) -->
-  <line x1="0" y1="1" x2="${W}" y2="1" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
-  <line x1="0" y1="${H - 1}" x2="${W}" y2="${H - 1}" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
-
-  <!-- Large decorative bolt (right side, semi-transparent) -->
-  <g transform="translate(870, 140) scale(4.2)" opacity="0.12">
-    <path d="${boltPath}" fill="#FF5A1F"/>
-  </g>
-
-  <!-- Small bolt logo (top-left branding) -->
-  <g transform="translate(120, 52) scale(0.55)">
-    <path d="${boltPath}" fill="url(#boltGrad)"/>
-  </g>
-
-  <!-- "時事軸" product name -->
-  <text x="175" y="88" font-size="28" font-weight="700" fill="white" font-family="'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif" opacity="0.95">時事軸</text>
-  <text x="265" y="88" font-size="22" font-weight="400" fill="rgba(255,255,255,0.5)" font-family="'Sora', sans-serif">by SoWork.ai</text>
-
-  <!-- Divider line -->
-  <line x1="120" y1="108" x2="${W - 120}" y2="108" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
-
-  <!-- Category badge -->
-  ${categoryBadge}
-
-  <!-- Topic title -->
-  ${titleSvgLines}
-
-  <!-- Stats -->
-  ${statsSection}
-
-  <!-- Comment / Personal Opinion (if provided) -->
-  ${comment ? (() => {
-    const commentLines = wrapText(comment, 38);
-    const commentStartY = H - 60 - (commentLines.length * 28) - 20;
-    const commentSvg = commentLines.map((line, i) =>
-      `<text x="144" y="${commentStartY + i * 28}" font-size="22" fill="rgba(255,255,255,0.85)" font-family="'Noto Sans TC', 'PingFang TC', sans-serif" font-style="italic">${escapeXml(line)}</text>`
-    ).join('\n');
-    const authorLabel = authorName ? `<text x="144" y="${commentStartY - 28}" font-size="18" fill="rgba(255,90,31,0.9)" font-family="'Sora', 'Noto Sans TC', sans-serif" font-weight="700">${escapeXml(authorName)} 的觀點</text>` : '';
-    const boxH = commentLines.length * 28 + 60;
-    const boxY = commentStartY - 48;
-    return `
-  <rect x="100" y="${boxY}" width="${W - 200}" height="${boxH}" rx="12" fill="rgba(255,90,31,0.12)" stroke="rgba(255,90,31,0.3)" stroke-width="1"/>
-  <line x1="120" y1="${boxY + 10}" x2="120" y2="${boxY + boxH - 10}" stroke="#FF5A1F" stroke-width="3" stroke-linecap="round"/>
-  ${authorLabel}
-  ${commentSvg}`;
-  })() : ''}
-
-  <!-- Bottom bar -->
-  <rect x="0" y="${H - 60}" width="${W}" height="60" fill="rgba(255,90,31,0.12)"/>
-  <line x1="0" y1="${H - 60}" x2="${W}" y2="${H - 60}" stroke="rgba(255,90,31,0.3)" stroke-width="1"/>
-  <text x="120" y="${H - 22}" font-size="22" fill="rgba(255,255,255,0.6)" font-family="'Sora', 'Noto Sans TC', sans-serif">newsflow.sowork.ai</text>
-  <text x="${W - 120}" y="${H - 22}" font-size="22" fill="rgba(255,90,31,0.8)" font-family="'Sora', sans-serif" text-anchor="end">時事軸 — 看見新聞的演變脈絡</text>
-</svg>`;
-
-  const buffer = await sharp(Buffer.from(svg))
-    .png({ compressionLevel: 6 })
-    .toBuffer();
-
-  return buffer;
+  const resvg = new Resvg(svg, {
+    fitTo: { mode: 'width', value: 1200 },
+  });
+  const pngData = resvg.render();
+  return Buffer.from(pngData.asPng());
 }
