@@ -10,9 +10,17 @@ import {
   getTurningPointNews,
   getUserByEmail,
 } from "./db";
-import { fetchAndStoreArticles, seedRssSources } from "./newsIngestion";
+import {
+  fetchAndStoreArticles,
+  seedRssSources,
+} from "./newsIngestion";
 import { buildTopicTimeline, generateStanceResponse } from "./aiAnalysis";
-import { triggerManualUpdate } from "./scheduler";
+import {
+  triggerManualEmbeddingBackfill,
+  triggerManualHotRefresh,
+  triggerManualRssIngestion,
+  triggerManualUpdate,
+} from "./scheduler";
 import { getDb } from "./db";
 import {
   topics,
@@ -914,8 +922,13 @@ ${input.currentContent}
     triggerIngest: protectedProcedure
       .input(z.object({ sourceUrl: z.string().url().optional() }).optional())
       .mutation(async ({ input }) => {
-        await seedRssSources();
-        const stored = await fetchAndStoreArticles(input?.sourceUrl);
+        if (input?.sourceUrl) {
+          await seedRssSources();
+          const stored = await fetchAndStoreArticles(input.sourceUrl);
+          return { stored, message: `成功抓取並儲存 ${stored} 篇新聞（指定來源）` };
+        }
+
+        const { stored } = await triggerManualRssIngestion();
         return { stored, message: `成功抓取並儲存 ${stored} 篇新聞` };
       }),
 
@@ -935,11 +948,29 @@ ${input.currentContent}
         };
       }),
 
+    triggerEmbeddingBackfill: protectedProcedure
+      .mutation(async () => {
+        const result = await triggerManualEmbeddingBackfill();
+        return { ...result, message: `Embedding 補跑完成：處理 ${result.processed} 篇新聞` };
+      }),
+
+    triggerHotRefresh: protectedProcedure
+      .mutation(async () => {
+        const result = await triggerManualHotRefresh();
+        return {
+          ...result,
+          message: `熱門議題刷新完成：成功 ${result.success} 個，失敗 ${result.failed} 個`,
+        };
+      }),
+
     // 手動觸發每日更新（供管理員測試）
     triggerDailyUpdate: protectedProcedure
       .mutation(async () => {
         const result = await triggerManualUpdate();
-        return { ...result, message: `手動更新完成：成功 ${result.success} 個，失敗 ${result.failed} 個` };
+        return {
+          ...result,
+          message: `手動更新完成：成功 ${result.success} 個，失敗 ${result.failed} 個`,
+        };
       }),
 
     // 批次建立平台預設議題（僅管理員可用）
