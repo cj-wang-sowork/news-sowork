@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { trpc } from '@/lib/trpc';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { signInWithPopup } from 'firebase/auth';
-import { firebaseAuth, googleProvider } from '@/lib/firebase';
+import { firebaseAuth, googleProvider, isFirebaseConfigured } from '@/lib/firebase';
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
@@ -65,6 +65,12 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setError('');
+
+    if (!isFirebaseConfigured || !firebaseAuth || !googleProvider) {
+      setError('Google 登入尚未啟用，請先完成 Firebase 設定');
+      return;
+    }
+
     setGoogleLoading(true);
     try {
       const result = await signInWithPopup(firebaseAuth, googleProvider);
@@ -120,7 +126,7 @@ export default function LoginPage() {
             variant="outline"
             className="w-full h-11 font-semibold border-border hover:border-gray-400 hover:bg-gray-50 transition-colors"
             onClick={handleGoogleLogin}
-            disabled={googleLoading || loginMutation.isPending}
+            disabled={!isFirebaseConfigured || googleLoading || loginMutation.isPending}
           >
             {googleLoading ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useLocation } from 'wouter';
+import { useLocation, type RouteComponentProps } from 'wouter';
 import {
   Search, TrendingUp, TrendingDown, Minus, ArrowRight, Flame,
   Newspaper, Radio, Loader2, Plus, Coins, Eye, Lock, Tag
@@ -16,7 +16,7 @@ import Navbar from '@/components/Navbar';
 import { trpc } from '@/lib/trpc';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { getLoginUrl } from '@/const';
-import { suggestedTopics } from '@/lib/mockData';
+import { getSurfaceConfig, SURFACE_NAV_ITEMS, type SurfaceKey } from '@/lib/surfaceConfig';
 
 /** 計算相對時間字串 */
 function timeAgo(date: Date | string | null): string {
@@ -195,7 +195,13 @@ function TopicCard({ topic, index, onTagClick }: { topic: TopicCardData; index: 
   );
 }
 
-export default function Home() {
+interface HomeProps extends Partial<RouteComponentProps> {
+  surface?: SurfaceKey;
+}
+
+export default function Home({ surface = 'global' }: HomeProps) {
+  const surfaceConfig = getSurfaceConfig(surface);
+  const surfaceTopics = surfaceConfig.suggestedTopics;
   const [query, setQuery] = useState('');
   const [placeholder, setPlaceholder] = useState('');
   const [topicIndex, setTopicIndex] = useState(0);
@@ -209,7 +215,7 @@ export default function Home() {
 
   // Typing animation for placeholder
   useEffect(() => {
-    const current = suggestedTopics[topicIndex];
+    const current = surfaceTopics[topicIndex];
     if (!current) return;
     const timeout = setTimeout(() => {
       if (!isDeleting) {
@@ -225,12 +231,19 @@ export default function Home() {
           setCharIndex(c => c - 1);
         } else {
           setIsDeleting(false);
-          setTopicIndex(i => (i + 1) % suggestedTopics.length);
+          setTopicIndex(i => (i + 1) % surfaceTopics.length);
         }
       }
     }, isDeleting ? 60 : 100);
     return () => clearTimeout(timeout);
-  }, [charIndex, isDeleting, topicIndex]);
+  }, [charIndex, isDeleting, topicIndex, surfaceTopics]);
+
+  useEffect(() => {
+    setPlaceholder('');
+    setTopicIndex(0);
+    setCharIndex(0);
+    setIsDeleting(false);
+  }, [surface]);
 
   // Fetch real hot topics from API (limit 50)
   const { data: apiTopics, isLoading: topicsLoading } = trpc.topics.hot.useQuery({ limit: 50 });
@@ -318,16 +331,44 @@ export default function Home() {
             <div className="fade-up opacity-0" style={{ animationFillMode: 'forwards' }}>
               <div className="inline-flex items-center gap-2 bg-red-50 border border-red-100 rounded-full px-3 py-1.5 mb-6">
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-xs font-semibold text-red-600 uppercase tracking-wide">Live — 持續更新中</span>
+                <span className="text-xs font-semibold text-red-600 uppercase tracking-wide">{surfaceConfig.heroEyebrow} · 持續更新中</span>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-5">
+                <button
+                  type="button"
+                  onClick={() => navigate('/')}
+                  className={`text-xs px-3 py-1.5 rounded-full border font-semibold transition-all ${
+                    surface === 'global'
+                      ? 'bg-[#FF5A1F] text-white border-[#FF5A1F]'
+                      : 'bg-white text-muted-foreground border-border hover:border-[#FF5A1F] hover:text-[#FF5A1F]'
+                  }`}
+                >
+                  全部
+                </button>
+                {SURFACE_NAV_ITEMS.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => navigate(item.path)}
+                    className={`text-xs px-3 py-1.5 rounded-full border font-semibold transition-all ${
+                      surface === item.key
+                        ? 'bg-[#FF5A1F] text-white border-[#FF5A1F]'
+                        : 'bg-white text-muted-foreground border-border hover:border-[#FF5A1F] hover:text-[#FF5A1F]'
+                    }`}
+                  >
+                    {item.navLabel}
+                  </button>
+                ))}
               </div>
 
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.1] tracking-tight mb-4"
                 style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
-                看見新聞的
-                <span className="text-[#FF5A1F] block">演變脈絡</span>
+                {surfaceConfig.heroTitle}
+                <span className="text-[#FF5A1F] block">{surfaceConfig.heroAccent}</span>
               </h1>
               <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-md" style={{ fontFamily: 'Noto Sans TC, sans-serif' }}>
-                AI 自動聚合全球新聞，標記重大轉折點，讓你在 30 秒內掌握一個事件的完整演變——而不是淹沒在千篇報導中。
+                {surfaceConfig.heroDescription}
               </p>
 
               {/* Search Box */}
@@ -338,7 +379,7 @@ export default function Home() {
                     type="text"
                     value={query}
                     onChange={e => setQuery(e.target.value)}
-                    placeholder={query ? '' : placeholder || '輸入你想追蹤的事件...'}
+                    placeholder={query ? '' : placeholder || surfaceConfig.searchPlaceholder}
                     className="flex-1 px-3 py-4 text-base bg-transparent outline-none text-foreground placeholder:text-muted-foreground/60 typing-cursor"
                     style={{ fontFamily: 'Noto Sans TC, sans-serif' }}
                   />
@@ -359,7 +400,7 @@ export default function Home() {
 
               {/* Quick suggestions */}
               <div className="flex flex-wrap gap-2 mt-4">
-                {suggestedTopics.slice(0, 4).map(t => (
+                {surfaceTopics.slice(0, 6).map(t => (
                   <button
                     key={t}
                     onClick={() => { setQuery(t); createOrFind.mutate({ query: t }); }}

@@ -10,6 +10,7 @@ import { Menu, X, LogOut, Plus, User, Bookmark, Languages, Merge } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useI18n, type Locale } from '@/contexts/I18nContext';
+import { SURFACE_NAV_ITEMS } from '@/lib/surfaceConfig';
 
 const SOWORK_LOGO_URL = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/sowork-icon-single_b50b43e6.png';
 
@@ -58,6 +59,17 @@ export default function Navbar() {
                 {t('nav.explore')}
               </Button>
             </Link>
+            {SURFACE_NAV_ITEMS.map((item) => (
+              <Link key={item.key} href={item.path}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`text-sm font-medium ${location === item.path ? 'text-[#FF5A1F]' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  {item.navLabel}
+                </Button>
+              </Link>
+            ))}
             {/* SoWork.ai 官網引導 */}
             <a
               href="https://tw.sowork.ai?utm_source=newsflow&utm_medium=referral"
@@ -172,6 +184,13 @@ export default function Navbar() {
           <Link href="/" onClick={() => setMenuOpen(false)}>
             <Button variant="ghost" className="w-full justify-start text-sm">探索話題</Button>
           </Link>
+          {SURFACE_NAV_ITEMS.map((item) => (
+            <Link key={item.key} href={item.path} onClick={() => setMenuOpen(false)}>
+              <Button variant="ghost" className="w-full justify-start text-sm">
+                {item.navLabel}
+              </Button>
+            </Link>
+          ))}
           <Button variant="ghost" className="w-full justify-start text-sm text-muted-foreground" onClick={() => alert('Feature coming soon')}>
             訂閱追蹤
           </Button>
