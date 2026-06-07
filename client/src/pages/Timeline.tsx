@@ -1,0 +1,1480 @@
+/*
+ * Timeline Page — SoWork NewsFlow
+ * Design: Narrative Pulse | Central orange axis, alternating cards, turning point pulses
+ * Layout: Top search bar + central timeline axis + left-right alternating cards
+ * Data: Fully connected to real tRPC API (no mockData)
+ */
+
+import { useState, useEffect, useRef } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { useLocation, useParams } from 'wouter';
+import {
+  Newspaper, Radio, ChevronDown, ChevronUp,
+  ExternalLink, Zap, ArrowLeft, BrainCircuit, Globe, Loader2, AlertCircle,
+  Bookmark, BookmarkCheck, Sparkles
+} from 'lucide-react';
+import { Streamdown } from 'streamdown';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import Navbar from '@/components/Navbar';
+import { trpc } from '@/lib/trpc';
+import { useAuth } from '@/_core/hooks/useAuth';
+import { getLoginUrl } from '@/const';
+import { useI18n } from '@/contexts/I18nContext';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+type HeatLevel = 'extreme' | 'high' | 'medium' | 'low';
+
+interface RealNewsItem {
+  id: number | string;
+  title: string;
+  url: string;
+  source: string;
+  sourceFlag: string;
+  language: string;
+  time: string;
+}
+
+interface RealTurningPoint {
+  id: number;
+  topicId: number;
+  title: string;
+  titleEn?: string | null;
+  summary: string;
+  dateLabel: string;
+  eventDate: Date | string;
+  articleCount: number;
+  mediaCount: number;
+  heatLevel: HeatLevel;
+  isActive: number;
+  sortOrder: number;
+  news: RealNewsItem[];
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+// Heat labels are i18n — resolved in component via t('heat.xxx')
+const HEAT_CONFIG = {
+  extreme: { labelKey: 'heat.extreme', bg: 'bg-red-500', ring: 'ring-red-200', textColor: 'text-red-600', lightBg: 'bg-red-50' },
+  high:    { labelKey: 'heat.high',    bg: 'bg-orange-500', ring: 'ring-orange-200', textColor: 'text-orange-600', lightBg: 'bg-orange-50' },
+  medium:  { labelKey: 'heat.medium',  bg: 'bg-yellow-500', ring: 'ring-yellow-200', textColor: 'text-yellow-600', lightBg: 'bg-yellow-50' },
+  low:     { labelKey: 'heat.low',     bg: 'bg-gray-400', ring: 'ring-gray-200', textColor: 'text-gray-500', lightBg: 'bg-gray-50' },
+};
+
+const AI_BG = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663322868588/e62Q4utoyfc8BuJjv96dsP/ai-response-panel-bg-9sBdPYzxpxr4fjK9F9yQNj.webp';
+
+const LANG_LABEL: Record<string, string> = {
+  'zh-TW': '繁中', 'zh-CN': '简中', 'zh': '中文',
+  'en': 'EN', 'ja': '日文', 'ko': '한국어',
+  'fr': 'FR', 'de': 'DE', 'ar': 'AR',
+  'pt': 'PT', 'es': 'ES', 'ru': 'RU',
+};
+
+function normalizeSourceCode(raw: string | null | undefined): string {
+  if (!raw) return '';
+  const cp0 = raw.codePointAt(0) ?? 0;
+  if (cp0 >= 0x1F1E6 && cp0 <= 0x1F1FF) {
+    const cps = [...raw].map(c => c.codePointAt(0) ?? 0).filter(cp => cp >= 0x1F1E6 && cp <= 0x1F1FF);
+    if (cps.length >= 2) return cps.slice(0, 2).map(cp => String.fromCharCode(cp - 0x1F1E6 + 65)).join('');
+  }
+  if (/^[A-Za-z]{2,3}$/.test(raw)) return raw.toUpperCase().slice(0, 2);
+  return '';
+}
+
+function formatDateLabel(raw: string, locale = 'zh-TW'): string {
+  if (!raw) return raw;
+  // ISO date like "2026-04-21"
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const year = isoMatch[1];
+    const month = parseInt(isoMatch[2], 10);
+    const day = parseInt(isoMatch[3], 10);
+    if (locale === 'en') {
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${months[month - 1]} ${day}, ${year}`;
+    }
+    return `${year}年${month}月${day}日`;
+  }
+  // Already Chinese format (e.g. "2026年5月18日")
+  if (raw.includes('年') && locale === 'en') {
+    const zhMatch = raw.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+    if (zhMatch) {
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${months[parseInt(zhMatch[2], 10) - 1]} ${zhMatch[3]}, ${zhMatch[1]}`;
+    }
+  }
+  return raw;
+}
+
+// ─── NewsCard ─────────────────────────────────────────────────────────────────
+function NewsCard({ item }: { item: RealNewsItem }) {
+  const countryCode = normalizeSourceCode(item.sourceFlag);
+  const langLabel = LANG_LABEL[item.language] ?? item.language?.split('-')[0]?.toUpperCase() ?? '';
+
+  return (
+    <a
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-start gap-3 p-3 rounded-xl hover:bg-[#FFF0EB] transition-colors group cursor-pointer"
+    >
+      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-[#FFF0EB] flex items-center justify-center">
+        {countryCode ? (
+          <span className="text-[11px] font-bold text-[#FF5A1F] tracking-wide">{countryCode}</span>
+        ) : (
+          <Newspaper className="w-4 h-4 text-[#FF5A1F]/60" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground leading-snug group-hover:text-[#FF5A1F] transition-colors line-clamp-2"
+          style={{ fontFamily: 'Noto Sans TC, sans-serif' }}>
+          {item.title}
+        </p>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xs text-muted-foreground">{item.source}</span>
+          {langLabel && (
+            <span className="text-[10px] px-1 py-0.5 rounded bg-slate-100 text-slate-400 font-medium leading-none">{langLabel}</span>
+          )}
+          <span className="text-xs text-muted-foreground">{item.time}</span>
+        </div>
+      </div>
+      <ExternalLink className="w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-[#FF5A1F] flex-shrink-0 mt-0.5 transition-colors" />
+    </a>
+  );
+}
+
+// ─── TurningPointCard ─────────────────────────────────────────────────────────
+function TurningPointCard({
+  point,
+  index,
+  onAIClick,
+}: {
+  point: RealTurningPoint;
+  index: number;
+  onAIClick: (point: RealTurningPoint) => void;
+}) {
+  const [expanded, setExpanded] = useState(index === 0);
+  const { t, locale } = useI18n();
+  const heat = HEAT_CONFIG[point.heatLevel] ?? HEAT_CONFIG.medium;
+  const isActive = point.isActive === 1;
+
+  return (
+    <div
+      className={`w-full fade-up opacity-0 bg-white rounded-2xl border border-border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden ${isActive ? 'border-[#FF5A1F]/30' : ''}`}
+      style={{ animationDelay: `${index * 120}ms`, animationFillMode: 'forwards' }}
+    >
+      {isActive && (
+        <div className="h-1 bg-gradient-to-r from-[#FF5A1F] to-[#ff8c5a]" />
+      )}
+
+      <div className="p-5">
+        {/* Date + Heat */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-semibold text-[#FF5A1F] bg-[#FFF0EB] px-2.5 py-1 rounded-lg">
+              {formatDateLabel(point.dateLabel, locale)}
+            </span>
+            {isActive && (
+              <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                {t('timeline.ongoing')}
+              </span>
+            )}
+          </div>
+          <span className={`text-xs font-medium ${heat.textColor} ${heat.lightBg} px-2 py-0.5 rounded-full`}>
+            {t(heat.labelKey)}
+          </span>
+        </div>
+
+        {/* Title */}
+        <h3 className="font-extrabold text-[17px] text-foreground leading-snug mb-1"
+          style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
+          {point.title}
+        </h3>
+        {/* English subtitle — only shown when titleEn is distinct from Chinese title */}
+        {point.titleEn && point.titleEn !== point.title && !/[一-鿿]/.test(point.titleEn) && (
+          <p className="text-xs text-muted-foreground font-medium mb-2 tracking-wide">
+            {point.titleEn}
+          </p>
+        )}
+
+        {/* Summary */}
+        <p className="text-sm text-muted-foreground leading-relaxed mb-4"
+          style={{ fontFamily: 'Noto Sans TC, sans-serif' }}>
+          {point.summary}
+        </p>
+
+        {/* Stats */}
+        <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center gap-1.5">
+            <Newspaper className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-sm font-bold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
+              {(point.articleCount ?? 0).toLocaleString()}
+            </span>
+            <span className="text-xs text-muted-foreground">{t('timeline.articles')}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Radio className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-sm font-bold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
+              {point.mediaCount}
+            </span>
+            <span className="text-xs text-muted-foreground">{t('timeline.media')}</span>
+          </div>
+        </div>
+
+        {/* Media dots */}
+        <div className="flex items-center gap-1 mb-4">
+          {Array.from({ length: Math.min(point.mediaCount, 24) }).map((_, i) => (
+            <div
+              key={i}
+              className="w-2 h-2 rounded-full transition-all"
+              style={{
+                backgroundColor: i < Math.ceil(point.mediaCount * 0.65) ? '#FF5A1F' : '#E8E8E8',
+                opacity: i < Math.ceil(point.mediaCount * 0.65) ? 1 : 0.5,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Expand/Collapse news */}
+        {point.news.length > 0 && (
+          <>
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-[#FF5A1F] hover:text-[#e04d18] transition-colors mb-2"
+            >
+              {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {expanded
+                ? t('timeline.hideNews')
+                : `${t('timeline.showNews')} (${point.news.length}${t('timeline.newsUnit') ? ' ' + t('timeline.newsUnit') : ''})`}
+            </button>
+
+            {expanded && (
+              <div className="border-t border-border pt-3 space-y-1">
+                {point.news.map(item => (
+                  <NewsCard key={item.id} item={item} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* AI Response Button */}
+        <div className="border-t border-border mt-4 pt-4">
+          <Button
+            onClick={() => onAIClick(point)}
+            className="w-full bg-gradient-to-r from-[#FF5A1F] to-[#ff7a45] hover:from-[#e04d18] hover:to-[#e06835] text-white font-semibold rounded-xl shadow-sm"
+          >
+            <BrainCircuit className="w-4 h-4 mr-2" />
+            {t('timeline.ai.button')}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DiffView: word-level diff between two text versions ────────────────────
+function computeWordDiff(oldText: string, newText: string): Array<{ text: string; type: 'same' | 'added' | 'removed' }> {
+  const oldWords = oldText.split(/(\s+)/);
+  const newWords = newText.split(/(\s+)/);
+  // Simple LCS-based diff
+  const m = oldWords.length;
+  const n = newWords.length;
+  // Build LCS table
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (oldWords[i - 1] === newWords[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+  // Backtrack
+  const result: Array<{ text: string; type: 'same' | 'added' | 'removed' }> = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && oldWords[i - 1] === newWords[j - 1]) {
+      result.unshift({ text: oldWords[i - 1], type: 'same' });
+      i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      result.unshift({ text: newWords[j - 1], type: 'added' });
+      j--;
+    } else {
+      result.unshift({ text: oldWords[i - 1], type: 'removed' });
+      i--;
+    }
+  }
+  return result;
+}
+
+function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
+  const tokens = computeWordDiff(oldText, newText);
+  return (
+    <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ fontFamily: 'Noto Sans TC, sans-serif' }}>
+      <div className="flex items-center gap-3 mb-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-green-200 border border-green-400" />新增</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-red-100 border border-red-300" />刪除</span>
+      </div>
+      <p className="leading-relaxed">
+        {tokens.map((token, idx) => {
+          if (token.type === 'added') {
+            return <mark key={idx} className="bg-green-100 text-green-800 rounded px-0.5 no-underline">{token.text}</mark>;
+          } else if (token.type === 'removed') {
+            return <del key={idx} className="bg-red-50 text-red-500 rounded px-0.5">{token.text}</del>;
+          }
+          return <span key={idx}>{token.text}</span>;
+        })}
+      </p>
+    </div>
+  );
+}
+
+// ─── AIResponsePanel ──────────────────────────────────────────────────────────
+function AIResponsePanel({
+  point,
+  onClose,
+  initialRole,
+  initialType,
+}: {
+  point: RealTurningPoint | null;
+  onClose: () => void;
+  initialRole?: string;
+  initialType?: 'press' | 'social' | 'memo';
+}) {
+  const RECENT_ROLES_KEY = 'newsflow_recent_roles';
+  const MAX_RECENT = 5;
+
+  // 身份記憶：從 localStorage 載入最近使用的身份
+  const [recentRoles, setRecentRoles] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(RECENT_ROLES_KEY);
+      return stored ? (JSON.parse(stored) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const saveRoleToRecent = (r: string) => {
+    if (!r.trim()) return;
+    setRecentRoles(prev => {
+      const updated = [r.trim(), ...prev.filter(x => x !== r.trim())].slice(0, MAX_RECENT);
+      try { localStorage.setItem(RECENT_ROLES_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+      return updated;
+    });
+  };
+
+  const removeRecentRole = (r: string) => {
+    setRecentRoles(prev => {
+      const updated = prev.filter(x => x !== r);
+      try { localStorage.setItem(RECENT_ROLES_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+      return updated;
+    });
+  };
+
+  const [role, setRole] = useState(initialRole ?? '');
+  const [responseType, setResponseType] = useState<'press' | 'social' | 'memo'>(initialType ?? 'press');
+  // 版本歷史：每次生成/修改都存入 versions 陣列
+  type VersionItem = { content: string; label: string };
+  const [versions, setVersions] = useState<VersionItem[]>([]);
+  const [currentVersionIdx, setCurrentVersionIdx] = useState(0);
+  const generatedContent = versions[currentVersionIdx]?.content ?? '';
+  const [refineInput, setRefineInput] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  // 對話修改歷程：儲存每次修改的指令（不含內容，內容在 versions）
+  const [refineHistory, setRefineHistory] = useState<string[]>([]);
+  // 歷程摺疊狀態
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+  // Diff 視圖狀態
+  const [showDiff, setShowDiff] = useState(false);
+
+  // ── Touch drag to close (mobile bottom sheet) ──
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dragStartY = useRef<number | null>(null);
+  const dragCurrentY = useRef<number>(0);
+  const [dragOffset, setDragOffset] = useState(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    dragStartY.current = e.touches[0].clientY;
+    dragCurrentY.current = 0;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (dragStartY.current === null) return;
+    const delta = e.touches[0].clientY - dragStartY.current;
+    if (delta > 0) {
+      dragCurrentY.current = delta;
+      setDragOffset(delta);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragCurrentY.current > 100) {
+      onClose();
+    }
+    dragStartY.current = null;
+    dragCurrentY.current = 0;
+    setDragOffset(0);
+  };
+
+  // AI 推薦身份（根據議題標題自動載入）
+  const { data: suggestedRoles, isLoading: rolesLoading } = trpc.ai.suggestRoles.useQuery(
+    {
+      topicTitle: point?.title ?? '',
+      topicSummary: point?.summary ?? '',
+    },
+    { enabled: !!point }
+  );
+
+  const generateStance = trpc.ai.generateStance.useMutation({
+    onSuccess: (data) => {
+      const content = typeof data.content === 'string' ? data.content : '';
+      const newVersions = [{ content, label: '原始版本' }];
+      setVersions(newVersions);
+      setCurrentVersionIdx(0);
+      setRefineHistory([]);
+      setHistoryExpanded(false);
+      // 生成成功後將身份儲存到最近使用
+      saveRoleToRecent(role);
+    },
+  });
+
+  const refineContent = trpc.ai.refineContent.useMutation({
+    onSuccess: (data) => {
+      const refined = typeof data.content === 'string' ? data.content : '';
+      const instruction = refineInput.trim();
+      setVersions(prev => {
+        const newVersions = [...prev, { content: refined, label: `修改 ${prev.length}：${instruction.slice(0, 12)}${instruction.length > 12 ? '...' : ''}` }];
+        setCurrentVersionIdx(newVersions.length - 1);
+        return newVersions;
+      });
+      setRefineHistory(prev => [...prev, instruction]);
+      setRefineInput('');
+    },
+  });
+
+  const handleGenerate = () => {
+    if (!role.trim() || !point) return;
+    setVersions([]);
+    setRefineHistory([]);
+    generateStance.mutate({
+      topicTitle: point.title,
+      topicSummary: point.summary,
+      role: role.trim(),
+      responseType,
+      language: 'zh-TW',
+    });
+  };
+
+  const handleRefine = () => {
+    if (!refineInput.trim() || !generatedContent || !point) return;
+    refineContent.mutate({
+      currentContent: generatedContent,
+      instruction: refineInput.trim(),
+      role: role.trim(),
+      responseType,
+      topicTitle: point.title,
+    });
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generatedContent);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    const typeLabel = { press: '新聞稿', social: '社群貼文', memo: '內部備忘' }[responseType];
+    const filename = `${typeLabel}_${role}_${point?.title?.slice(0, 15) ?? 'AI回覆'}.txt`;
+    const blob = new Blob([generatedContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleShare = () => {
+    if (!point) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('ai', '1');
+    url.searchParams.set('role', role.trim());
+    url.searchParams.set('type', responseType);
+    navigator.clipboard.writeText(url.toString());
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  if (!point) return null;
+  const isGenerating = generateStance.isPending;
+  const isRefining = refineContent.isPending;;
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      {/* Desktop: right side panel | Mobile: bottom sheet */}
+      <div
+        ref={panelRef}
+        className="
+          absolute bg-white shadow-2xl flex flex-col overflow-hidden
+          /* Mobile: bottom sheet */
+          bottom-0 left-0 right-0 h-[88vh] rounded-t-2xl
+          /* Desktop: right panel */
+          sm:bottom-0 sm:top-0 sm:left-auto sm:right-0 sm:h-full sm:w-full sm:max-w-lg sm:rounded-none
+        "
+        style={{
+          transform: `translateY(${dragOffset}px)`,
+          transition: dragOffset === 0 ? 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)' : 'none',
+        }}
+      >
+
+        {/* Mobile drag handle */}
+        <div
+          className="flex justify-center pt-3 pb-1 sm:hidden flex-shrink-0 cursor-grab active:cursor-grabbing"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
+
+        {/* Panel Header */}
+        <div
+          className="relative p-5 pb-4 flex-shrink-0"
+          style={{ backgroundImage: `url(${AI_BG})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        >
+          <div className="absolute inset-0 bg-white/88" />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#FF5A1F] flex items-center justify-center">
+                  <BrainCircuit className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground text-sm" style={{ fontFamily: 'Sora, sans-serif' }}>AI 立場回覆建議</h3>
+                  <p className="text-xs text-muted-foreground">根據議題脈絡自動分析</p>
+                </div>
+              </div>
+              <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-black/10 text-muted-foreground hover:text-foreground transition-colors">
+                <span className="text-base">✕</span>
+              </button>
+            </div>
+            <div className="bg-[#FFF0EB] rounded-xl p-3">
+              <p className="text-xs font-semibold text-[#FF5A1F] uppercase tracking-wide mb-0.5">事件脈絡</p>
+              <p className="text-sm font-bold text-foreground line-clamp-1" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>{point.title}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{point.summary}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Panel Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+
+          {/* 身份選擇區 */}
+          <div>
+            <label className="text-sm font-semibold text-foreground mb-2 block" style={{ fontFamily: 'Sora, sans-serif' }}>
+              你的身份 / 立場
+            </label>
+            <input
+              type="text"
+              value={role}
+              onChange={e => setRole(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleGenerate()}
+              placeholder="輸入或點選下方推薦身份..."
+              className="w-full px-4 py-3 rounded-xl border-2 border-border focus:border-[#FF5A1F] outline-none text-sm bg-white transition-colors"
+              style={{ fontFamily: 'Noto Sans TC, sans-serif' }}
+            />
+            {/* 最近使用的身份 */}
+            {recentRoles.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs text-muted-foreground mb-1.5">🕒 最近使用</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {recentRoles.map(r => (
+                    <div key={r} className="flex items-center group">
+                      <button
+                        onClick={() => setRole(r)}
+                        className={`text-xs px-3 py-1.5 rounded-l-full border transition-all font-medium ${
+                          role === r
+                            ? 'bg-[#FF5A1F] text-white border-[#FF5A1F]'
+                            : 'bg-white text-foreground border-border hover:border-[#FF5A1F]/60 hover:text-[#FF5A1F]'
+                        }`}
+                      >
+                        {r}
+                      </button>
+                      <button
+                        onClick={() => removeRecentRole(r)}
+                        className="text-xs px-1.5 py-1.5 rounded-r-full border border-l-0 border-border bg-white text-muted-foreground hover:text-red-500 hover:border-red-200 transition-all opacity-0 group-hover:opacity-100"
+                        title="移除"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* AI 推薦身份 */}
+            <div className="mt-2">
+              {rolesLoading ? (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  AI 正在分析議題，推薦合適身份...
+                </div>
+              ) : suggestedRoles?.roles && suggestedRoles.roles.length > 0 ? (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1.5">🤖 AI 推薦身份（點選即可）</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {suggestedRoles.roles.map(r => (
+                      <button
+                        key={r}
+                        onClick={() => setRole(r)}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-all font-medium ${
+                          role === r
+                            ? 'bg-[#FF5A1F] text-white border-[#FF5A1F]'
+                            : 'bg-[#FFF0EB] text-[#FF5A1F] border-[#FF5A1F]/30 hover:bg-[#FF5A1F] hover:text-white hover:border-[#FF5A1F]'
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {/* 回覆類型 */}
+          <div>
+            <label className="text-sm font-semibold text-foreground mb-2 block" style={{ fontFamily: 'Sora, sans-serif' }}>
+              回覆類型
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { key: 'press', label: '新聞稿', icon: '📄' },
+                { key: 'social', label: '社群貼文', icon: '📱' },
+                { key: 'memo', label: '內部備忘', icon: '🔒' },
+              ].map(type => (
+                <button
+                  key={type.key}
+                  onClick={() => { setResponseType(type.key as typeof responseType); setVersions([]); setCurrentVersionIdx(0); setRefineHistory([]); setHistoryExpanded(false); }}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-sm font-medium ${
+                    responseType === type.key
+                      ? 'border-[#FF5A1F] bg-[#FFF0EB] text-[#FF5A1F]'
+                      : 'border-border bg-white text-muted-foreground hover:border-[#FF5A1F]/40'
+                  }`}
+                >
+                  <span className="text-lg">{type.icon}</span>
+                  {type.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 生成按鈕 */}
+          <div className="space-y-2">
+            <Button
+              onClick={handleGenerate}
+              disabled={!role.trim() || isGenerating}
+              className="w-full bg-[#FF5A1F] hover:bg-[#e04d18] text-white font-bold py-3 rounded-xl shadow-sm disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  AI 正在生成...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  {generatedContent ? '重新生成' : '生成回覆建議'}
+                </span>
+              )}
+            </Button>
+            {/* Beta 免費體驗標籤 */}
+            <div className="flex items-center justify-center gap-1.5">
+              <span className="inline-flex items-center gap-1 bg-green-50 border border-green-200 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Beta
+              </span>
+              <span className="text-[11px] text-muted-foreground">現在免費體驗，不消耗任何點數</span>
+            </div>
+          </div>
+
+          {/* 生成結果區 */}
+          {generatedContent && (
+            <div className="bg-[#FAFAFA] rounded-xl border border-border overflow-hidden">
+              {/* 結果標題列 */}
+              <div className="flex flex-col border-b border-border bg-white">
+                {/* 版本切換列（多版本時顯示） */}
+                {versions.length > 1 && (
+                  <div className="flex items-center justify-between px-4 py-1.5 bg-orange-50 border-b border-orange-100">
+                    <button
+                      onClick={() => { setCurrentVersionIdx(i => Math.max(0, i - 1)); setShowDiff(false); }}
+                      disabled={currentVersionIdx === 0}
+                      className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-orange-200 disabled:opacity-30 text-[#FF5A1F] transition-all"
+                    >
+                      ←
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <div className="text-center">
+                        <p className="text-xs font-semibold text-[#FF5A1F]">{versions[currentVersionIdx]?.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{currentVersionIdx + 1} / {versions.length} 個版本</p>
+                      </div>
+                      {currentVersionIdx > 0 && (
+                        <button
+                          onClick={() => setShowDiff(v => !v)}
+                          className={`text-[10px] px-2 py-0.5 rounded-full border transition-all ${
+                            showDiff
+                              ? 'bg-blue-100 border-blue-300 text-blue-700'
+                              : 'bg-white border-border text-muted-foreground hover:border-blue-300 hover:text-blue-600'
+                          }`}
+                        >
+                          {showDiff ? '關閉差異' : '顯示差異'}
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => { setCurrentVersionIdx(i => Math.min(versions.length - 1, i + 1)); setShowDiff(false); }}
+                      disabled={currentVersionIdx === versions.length - 1}
+                      className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-orange-200 disabled:opacity-30 text-[#FF5A1F] transition-all"
+                    >
+                      →
+                    </button>
+                  </div>
+                )}
+                {/* 操作列 */}
+                <div className="flex items-center justify-between px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-[#FF5A1F] uppercase tracking-wide">AI 生成結果</span>
+                    <span className="text-xs text-muted-foreground">· 以「{role}」身份</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={handleCopy}
+                      className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-all ${
+                        copied ? 'bg-green-100 text-green-700' : 'bg-[#FFF0EB] text-[#FF5A1F] hover:bg-[#FF5A1F] hover:text-white'
+                      }`}
+                    >
+                      {copied ? '✓ 已複製' : '📋 複製'}
+                    </button>
+                    <button
+                      onClick={handleDownload}
+                      className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-[#FFF0EB] text-[#FF5A1F] hover:bg-[#FF5A1F] hover:text-white transition-all"
+                    >
+                      ↓ 下載
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-all ${
+                        copiedLink ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                      title="複製分享連結"
+                    >
+                      {copiedLink ? '🔗 已複製連結' : '🔗 分享'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {/* 內容文本（Markdown 渲染 or Diff 視圖） */}
+              <div className="p-4 prose prose-sm max-w-none" style={{ fontFamily: 'Noto Sans TC, sans-serif' }}>
+                {showDiff && currentVersionIdx > 0 ? (
+                  <DiffView
+                    oldText={versions[currentVersionIdx - 1]?.content ?? ''}
+                    newText={generatedContent}
+                  />
+                ) : (
+                  <Streamdown>{generatedContent}</Streamdown>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 對話修改區（生成後才顯示） */}
+          {generatedContent && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs text-muted-foreground font-medium">對話修改</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              {/* 修改歷程（可折疊） */}
+              {refineHistory.length > 0 && (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setHistoryExpanded(v => !v)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+                  >
+                    <span className="text-[10px]">{historyExpanded ? '▼' : '▶'}</span>
+                    <span>{refineHistory.length} 次修改歷程</span>
+                    <div className="h-px flex-1 bg-border ml-1" />
+                  </button>
+                  {historyExpanded && (
+                    <div className="space-y-1.5">
+                      {refineHistory.map((instruction, i) => (
+                        <div key={i} className="bg-orange-50 rounded-lg px-3 py-2">
+                          <p className="text-xs text-[#FF5A1F] font-medium mb-0.5">修改指令 {i + 1}</p>
+                          <p className="text-xs text-muted-foreground">{instruction}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 修改輸入框（textarea 加大） */}
+              <div className="flex flex-col gap-2">
+                <textarea
+                  value={refineInput}
+                  onChange={e => setRefineInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && e.metaKey && handleRefine()}
+                  placeholder="輸入修改要求，例如：請更簡短、請加入數據支持、請調整語氣更正式..."
+                  disabled={isRefining}
+                  rows={3}
+                  className="w-full px-3 py-2.5 rounded-xl border-2 border-border focus:border-[#FF5A1F] outline-none text-sm bg-white transition-colors disabled:opacity-50 resize-none"
+                  style={{ fontFamily: 'Noto Sans TC, sans-serif' }}
+                />
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">按 ⌘+Enter 發送，每次修改消耗 5 點</p>
+                  <Button
+                    onClick={handleRefine}
+                    disabled={!refineInput.trim() || isRefining}
+                    size="sm"
+                    className="bg-[#FF5A1F] hover:bg-[#e04d18] text-white rounded-xl px-4 disabled:opacity-50"
+                  >
+                    {isRefining ? <Loader2 className="w-4 h-4 animate-spin" /> : '發送修改'}
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">• 每次修改消耗 5 點，可多輪對話直到滿意</p>
+            </div>
+          )}
+
+          {/* 底部備註 */}
+          <p className="text-xs text-muted-foreground flex items-center gap-1 pb-2">
+            <Globe className="w-3 h-3" />
+            此為 AI 生成內容，僅供參考，請自行審閱後使用。
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+//// ─── ShareButton: 分享對話框（支援個人觀點輸入） ─────────────────────
+function ShareButton({ title, url, authorName, slug, turningPointTitles = [] }: {
+  title: string;
+  url: string;
+  authorName?: string;
+  slug: string;
+  turningPointTitles?: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [comment, setComment] = useState('');
+  const [copied, setCopied] = useState<'plain' | 'comment' | 'fb' | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const MAX_COMMENT = 120;
+
+  // AI 論點生成
+  const {
+    data: opinionsData,
+    isLoading: opinionsLoading,
+    refetch: refetchOpinions,
+    isFetched: opinionsFetched,
+  } = trpc.ai.generateShareOpinions.useQuery(
+    { topicTitle: title, turningPoints: turningPointTitles.slice(0, 5) },
+    { enabled: false }  // 手動觸發
+  );
+
+  const handleGenerateOpinions = () => {
+    void refetchOpinions();
+  };
+
+  // Build share URL with optional comment
+  const buildShareUrl = (withComment: boolean) => {
+    if (!withComment || !comment.trim()) return url;
+    const params = new URLSearchParams();
+    params.set('comment', comment.trim());
+    if (authorName) params.set('author', authorName);
+    return `${url}?${params.toString()}`;
+  };
+
+  const copyToClipboard = async (text: string, type: 'plain' | 'comment') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(type);
+      setTimeout(() => setCopied(null), 2500);
+    } catch {
+      window.prompt('請複製以下連結：', text);
+    }
+  };
+
+  const handleFacebookShare = () => {
+    const shareUrl = buildShareUrl(!!comment.trim());
+    const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+    window.open(fbUrl, '_blank', 'width=600,height=400,noopener,noreferrer');
+    setCopied('fb');
+    setTimeout(() => setCopied(null), 3000);
+  };
+
+  const handleDirectShare = async () => {
+    const shareUrl = buildShareUrl(false);
+    const shareText = `「${title}」的完整新語演變脈絡 — 時事軸 by SoWork.ai`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `「${title}」 — 時事軸`, text: shareText, url: shareUrl });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') setOpen(true);
+      }
+    } else {
+      setOpen(true);
+    }
+  };
+
+  const ogImageUrl = comment.trim()
+    ? `/api/og/${encodeURIComponent(slug)}?comment=${encodeURIComponent(comment.trim().slice(0, 120))}${authorName ? `&author=${encodeURIComponent(authorName)}` : ''}`
+    : `/api/og/${encodeURIComponent(slug)}`;
+
+  return (
+    <>
+      <button
+        onClick={handleDirectShare}
+        title="分享此議題"
+        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all bg-white border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F] hover:bg-[#FFF0EB]"
+      >
+        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+        </svg>
+        分享
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">分享此議題</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              加入你的觀點，讓分享內容更吸引人點擊。
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* 議題標題預覽 */}
+          <div className="bg-muted/40 rounded-lg p-3 text-sm text-foreground font-medium border border-border">
+            「{title}」
+          </div>
+
+          {/* AI 論點區塊 */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">你的觀點（選填）</label>
+              <button
+                onClick={handleGenerateOpinions}
+                disabled={opinionsLoading}
+                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-[#FF5A1F]/40 text-[#FF5A1F] hover:bg-[#FFF0EB] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {opinionsLoading ? (
+                  <><Loader2 className="w-3 h-3 animate-spin" />生成中…</>
+                ) : (
+                  <><Sparkles className="w-3 h-3" />AI 幫我想論點</>
+                )}
+              </button>
+            </div>
+
+            {/* AI 論點按鈕 */}
+            {opinionsFetched && opinionsData && opinionsData.opinions.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                {opinionsData.opinions.map((op, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setComment(op.slice(0, MAX_COMMENT))}
+                    className={`text-left text-xs px-3 py-2 rounded-lg border transition-all ${
+                      comment === op.slice(0, MAX_COMMENT)
+                        ? 'border-[#FF5A1F] bg-[#FFF0EB] text-[#FF5A1F]'
+                        : 'border-border bg-muted/30 text-muted-foreground hover:border-[#FF5A1F]/50 hover:text-foreground'
+                    }`}
+                  >
+                    {op}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <Textarea
+              value={comment}
+              onChange={e => setComment(e.target.value.slice(0, MAX_COMMENT))}
+              placeholder="點擊上方「AI 幫我想論點」自動生成，或自行輸入…"
+              rows={3}
+              className="resize-none text-sm"
+            />
+            <p className="text-xs text-muted-foreground text-right">{comment.length} / {MAX_COMMENT}</p>
+          </div>
+
+          {/* OG 圖片預覽切換 */}
+          <div className="border-t border-border pt-3">
+            <button
+              onClick={() => setShowPreview(v => !v)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              {showPreview ? '收起分享圖片預覽' : '預覽分享到 Facebook 的圖片'}
+            </button>
+            {showPreview && (
+              <div className="mt-2 rounded-lg overflow-hidden border border-border">
+                <img
+                  src={ogImageUrl}
+                  alt="OG 圖片預覽"
+                  className="w-full h-auto"
+                  style={{ aspectRatio: '1200/630' }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 分享按鈕區 */}
+          <div className="space-y-2">
+            {/* Facebook 分享按鈕 */}
+            <button
+              onClick={handleFacebookShare}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all bg-[#1877F2] hover:bg-[#166FE5] text-white"
+            >
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+              </svg>
+              分享到 Facebook
+            </button>
+
+            {/* 複製連結按鈕 */}
+            {comment.trim() ? (
+              <button
+                onClick={() => copyToClipboard(buildShareUrl(true), 'comment')}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all border ${
+                  copied === 'comment'
+                    ? 'bg-green-50 border-green-400 text-green-700'
+                    : 'bg-[#FF5A1F] hover:bg-[#e04d18] text-white border-transparent'
+                }`}
+              >
+                {copied === 'comment' ? '✓ 已複製含觀點的連結' : '複製含觀點的分享連結'}
+              </button>
+            ) : (
+              <button
+                onClick={() => copyToClipboard(buildShareUrl(false), 'plain')}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium border transition-all ${
+                  copied === 'plain'
+                    ? 'bg-green-50 border-green-400 text-green-700'
+                    : 'bg-white border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F]'
+                }`}
+              >
+                {copied === 'plain' ? '✓ 已複製連結' : '複製連結'}
+              </button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ─── Main Timeline Page ────────────────────────────────────────────────
+export default function Timeline() {
+  const [, navigate] = useLocation();
+  const params = useParams<{ topicId: string }>();
+  const slug = params.topicId ?? '';
+  const { t, locale } = useI18n();
+  const [selectedPoint, setSelectedPoint] = useState<RealTurningPoint | null>(null);
+  const [aiAutoOpened, setAiAutoOpened] = useState(false);
+  const [pageShareCopied, setPageShareCopied] = useState(false);
+  const { isAuthenticated, user } = useAuth();
+  const utils = trpc.useUtils();
+  // Fetch real timeline data from API
+  const { data, isLoading, error } = trpc.topics.getTimeline.useQuery(
+    { slug },
+    { enabled: !!slug }
+  );
+  const topicId = data?.topic?.id;
+  // 取得議題下所有文章
+  const { data: allArticles } = trpc.topics.getTopicArticles.useQuery(
+    { topicId: topicId! },
+    { enabled: !!topicId }
+  );
+  const [showAllArticles, setShowAllArticles] = useState(false);
+  // Check if saved
+  const { data: isSaved } = trpc.topics.isSaved.useQuery(
+    { topicId: topicId! },
+    { enabled: isAuthenticated && !!topicId }
+  );
+  const saveTopic = trpc.topics.saveTopic.useMutation({
+    onSuccess: () => utils.topics.isSaved.invalidate({ topicId: topicId! }),
+  });
+  const unsaveTopic = trpc.topics.unsaveTopic.useMutation({
+    onSuccess: () => utils.topics.isSaved.invalidate({ topicId: topicId! }),
+  });
+  const handleToggleSave = () => {
+    if (!isAuthenticated) {
+      window.location.href = getLoginUrl();
+      return;
+    }
+    if (!topicId) return;
+    if (isSaved) {
+      unsaveTopic.mutate({ topicId });
+    } else {
+      saveTopic.mutate({ topicId });
+    }
+  };
+  // Check if subscribed to notifications
+  const { data: isSubscribed } = trpc.topics.isSubscribed.useQuery(
+    { topicId: topicId! },
+    { enabled: isAuthenticated && !!topicId }
+  );
+  const subscribeNotification = trpc.topics.subscribeNotification.useMutation({
+    onSuccess: () => utils.topics.isSubscribed.invalidate({ topicId: topicId! }),
+  });
+  const unsubscribeNotification = trpc.topics.unsubscribeNotification.useMutation({
+    onSuccess: () => utils.topics.isSubscribed.invalidate({ topicId: topicId! }),
+  });
+  const handleToggleNotification = () => {
+    if (!isAuthenticated) {
+      window.location.href = getLoginUrl();
+      return;
+    }
+    if (!topicId) return;
+    if (isSubscribed) {
+      unsubscribeNotification.mutate({ topicId });
+    } else {
+      subscribeNotification.mutate({ topicId });
+    }
+  };
+  // Record view (for creator's point reward)
+  const recordView = trpc.topics.recordView.useMutation();
+  const [viewRecorded, setViewRecorded] = useState(false);
+  useEffect(() => {
+    if (data?.topic && !viewRecorded) {
+      setViewRecorded(true);
+      recordView.mutate({ slug });
+    }
+  }, [data?.topic?.id]);
+
+  // 讀取 URL 參數，自動開啟 AI 面板並預填身份/類型
+  useEffect(() => {
+    if (!data?.turningPoints || aiAutoOpened) return;
+    const searchParams = new URLSearchParams(window.location.search);
+    const aiParam = searchParams.get('ai');
+    if (aiParam === '1' && data.turningPoints.length > 0) {
+      setAiAutoOpened(true);
+      setSelectedPoint(data.turningPoints[0]);
+    }
+  }, [data?.turningPoints]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA]">
+        <Navbar />
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full border-4 border-[#FF5A1F]/20 border-t-[#FF5A1F] animate-spin" />
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-bold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
+              {t('timeline.collecting')}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">{t('timeline.collectTarget')}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA]">
+        <Navbar />
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+          <AlertCircle className="w-12 h-12 text-muted-foreground" />
+          <div className="text-center">
+            <p className="text-lg font-bold text-foreground">找不到此話題</p>
+            <p className="text-sm text-muted-foreground mt-1">{t('timeline.empty.subtitle')}</p>
+          </div>
+          <Button onClick={() => navigate('/')} variant="outline" className="mt-2">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            {t('timeline.back')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const { topic, turningPoints: tpList } = data;
+
+  // Map API data to component types
+  const turningPoints: RealTurningPoint[] = tpList.map(tp => ({
+    id: tp.id,
+    topicId: tp.topicId,
+    title: tp.title,
+    titleEn: tp.titleEn,
+    summary: tp.summary,
+    dateLabel: tp.dateLabel,
+    eventDate: tp.eventDate,
+    articleCount: tp.articleCount,
+    mediaCount: tp.mediaCount,
+    heatLevel: (tp.heatLevel as HeatLevel) ?? 'medium',
+    isActive: tp.isActive,
+    sortOrder: tp.sortOrder,
+    news: (tp.news ?? []).map(n => ({
+      id: n.id,
+      title: n.title,
+      url: n.url,
+      source: n.source,
+      sourceFlag: n.sourceFlag ?? '📰',
+      language: n.language,
+      time: n.time,
+    })),
+  }));
+
+  const pageTitle = `${topic.query} — 時事軸 by SoWork.ai`;
+  const pageDesc = `追蹤「${topic.query}」的完整新聞演變脈絡。共 ${topic.totalArticles} 篇報導、${turningPoints.length} 個 AI 偵測轉折點，即時更新。`;
+  const pageUrl = `https://newsflow.sowork.ai/timeline/${encodeURIComponent(slug)}`;
+  // Dynamic OG image — generated server-side with topic title and SoWork.ai branding
+  const ogImage = `${window.location.origin}/api/og/${encodeURIComponent(slug)}`;
+
+  return (
+    <div className="min-h-screen bg-[#FAFAFA]">
+      <Helmet>
+        <title>{pageTitle}</title>
+        <link rel="canonical" href={pageUrl} />
+        <meta name="description" content={pageDesc} />
+        <meta property="og:type" content="article" />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDesc} />
+        <meta property="og:url" content={pageUrl} />
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:locale" content="zh_TW" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={pageDesc} />
+        <meta name="twitter:image" content={ogImage} />
+      </Helmet>
+      <Navbar />
+
+      {/* Topic Header */}
+      <div className="bg-white border-b border-border">
+        <div className="container py-6">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            {t('timeline.back')}
+          </button>
+
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">追蹤主題</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-semibold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  即時更新
+                </span>
+              </div>
+              <h1 className="text-3xl md:text-4xl font-extrabold text-foreground"
+                style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
+                {topic.query}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t('timeline.lastUpdate')}{topic.lastUpdated ? new Date(topic.lastUpdated).toLocaleString(locale === 'en' ? 'en-US' : locale === 'zh-CN' ? 'zh-CN' : 'zh-TW') : '—'}
+              </p>
+            </div>
+
+            <div className="flex flex-col items-end gap-4">
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <div className="text-2xl font-extrabold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
+                    {(topic.totalArticles ?? 0).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{t('timeline.articles')}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-extrabold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
+                    {topic.totalMedia}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{t('timeline.media')}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-extrabold text-foreground" style={{ fontFamily: 'Sora, sans-serif' }}>
+                    {turningPoints.length}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{t('timeline.turningPoints')}</div>
+                </div>
+              </div>
+              {/* Save / Unsave + Notification buttons */}
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={handleToggleSave}
+                  disabled={saveTopic.isPending || unsaveTopic.isPending}
+                  variant={isSaved ? 'outline' : 'default'}
+                  size="sm"
+                  className={isSaved
+                    ? 'flex items-center gap-1.5 border-[#FF5A1F] text-[#FF5A1F] hover:bg-orange-50'
+                    : 'flex items-center gap-1.5 bg-[#FF5A1F] hover:bg-[#e04d18] text-white'
+                  }
+                >
+                  {isSaved
+                    ? <><BookmarkCheck className="w-4 h-4" />{t('timeline.following')}</>
+                    : <><Bookmark className="w-4 h-4" />{t('timeline.follow')}</>
+                  }
+                </Button>
+                {isAuthenticated && (
+                  <button
+                    onClick={handleToggleNotification}
+                    disabled={subscribeNotification.isPending || unsubscribeNotification.isPending}
+                    title={isSubscribed ? '關閉轉折點通知' : '開啟新轉折點通知'}
+                    className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
+                      isSubscribed
+                        ? 'bg-orange-50 border-[#FF5A1F] text-[#FF5A1F]'
+                        : 'bg-white border-border text-muted-foreground hover:border-[#FF5A1F] hover:text-[#FF5A1F]'
+                    }`}
+                  >
+                    {isSubscribed ? '🔔 通知已開' : '🔕 開啟通知'}
+                  </button>
+                )}
+                {/* Share Button — 分享對話框（支援個人觀點 + AI 論點） */}
+                <ShareButton
+                  title={topic.query}
+                  url={pageUrl}
+                  slug={slug}
+                  authorName={user?.name ?? undefined}
+                  turningPointTitles={turningPoints.map(tp => tp.title)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Timeline */}
+      <div className="container py-12">
+        {turningPoints.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <AlertCircle className="w-10 h-10 text-muted-foreground" />
+            <p className="text-muted-foreground text-center">
+              AI 正在分析相關新聞，轉折點即將生成<br />
+              <span className="text-sm">請稍後重新整理頁面</span>
+            </p>
+          </div>
+        ) : (
+          <div className="relative">
+            {/* Left axis line — desktop & mobile */}
+            <div className="absolute left-6 md:left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#FF5A1F] via-[#FF5A1F] to-[#FF5A1F]/20" />
+
+            <div className="space-y-8">
+              {turningPoints.map((point, index) => (
+                <div key={point.id} className="relative pl-16 md:pl-20">
+                  {/* Axis dot */}
+                  <div className="absolute left-6 md:left-8 -translate-x-1/2 z-10 top-6">
+                    <div
+                      className={`w-5 h-5 rounded-full border-4 border-white shadow-md ${HEAT_CONFIG[point.heatLevel]?.bg ?? 'bg-gray-400'} ${point.isActive === 1 ? 'animate-pulse' : ''}`}
+                    />
+                  </div>
+
+                  {/* Card — full width */}
+                  <TurningPointCard point={point} index={index} onAIClick={setSelectedPoint} />
+                </div>
+              ))}
+            </div>
+
+            {/* End of timeline — aligned to left axis */}
+            <div className="relative pl-16 md:pl-20 mt-10">
+              <div className="absolute left-6 md:left-8 -translate-x-1/2 top-0 flex flex-col items-center">
+                <div className="w-3 h-3 rounded-full bg-[#FF5A1F]/30" />
+              </div>
+              <p className="text-xs text-muted-foreground pt-0.5">持續追蹤中...</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 全部新聞來源區塊 */}
+      {allArticles && allArticles.length > 0 && (
+        <div className="container pb-12">
+          <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+            <button
+              onClick={() => setShowAllArticles(!showAllArticles)}
+              className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Newspaper className="w-4 h-4 text-[#FF5A1F]" />
+                <span className="font-bold text-foreground" style={{ fontFamily: 'Sora, Noto Sans TC, sans-serif' }}>
+                  全部新聞來源
+                </span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-[#FFF0EB] text-[#FF5A1F] font-semibold">
+                  {allArticles.length} 篇
+                </span>
+              </div>
+              {showAllArticles ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            </button>
+
+            {showAllArticles && (
+              <div className="border-t border-border">
+                <div className="divide-y divide-border">
+                  {allArticles.map((article, idx) => (
+                    <a
+                      key={article.id}
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group"
+                    >
+                      <span className="text-xs text-muted-foreground font-mono w-6 flex-shrink-0 mt-0.5">{idx + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground leading-snug group-hover:text-[#FF5A1F] transition-colors line-clamp-2">
+                          {article.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-muted-foreground">{article.source}</span>
+                          {article.publishedAt && (
+                            <span className="text-xs text-muted-foreground">{article.publishedAt}</span>
+                          )}
+                          {article.turningPointId && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-[#FFF0EB] text-[#FF5A1F] font-medium">轉折點來源</span>
+                          )}
+                        </div>
+                      </div>
+                      <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AI Response Panel */}
+      {selectedPoint && (
+        <AIResponsePanel
+          point={selectedPoint}
+          onClose={() => setSelectedPoint(null)}
+          initialRole={new URLSearchParams(window.location.search).get('role') ?? undefined}
+          initialType={(new URLSearchParams(window.location.search).get('type') as 'press' | 'social' | 'memo') || undefined}
+        />
+      )}
+    </div>
+  );
+}
