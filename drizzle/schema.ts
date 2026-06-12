@@ -76,6 +76,8 @@ export const topics = mysqlTable("topics", {
   // 首頁熱門議題查詢索引：WHERE surface=? AND isActive=1 AND homepageFeaturedAt IS NOT NULL ORDER BY homepageFeaturedAt DESC
   // 沒有此索引時，getHotTopics 會在 10萬+ 議題上全表掃描，查詢耗時 17 秒導致議題卡無法載入
   idxHotSurface: index("idx_hot_surface").on(table.surface, table.isActive, table.homepageFeaturedAt),
+  // createdAt 索引：供 DB 層熔斷器「近 1 小時建立數」速率查詢，以及每日新增議題統計
+  idxCreated: index("idx_created").on(table.createdAt),
 }));
 
 export type Topic = typeof topics.$inferSelect;
@@ -98,7 +100,10 @@ export const turningPoints = mysqlTable("turning_points", {
   semanticDrift: float("semanticDrift"),
   sortOrder: int("sortOrder").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  // topicId 索引：供「議題是否有轉折點」NOT EXISTS 查詢、getTopicTurningPoints、清理空殼議題使用
+  idxTpTopic: index("idx_tp_topic").on(table.topicId),
+}));
 
 export type TurningPoint = typeof turningPoints.$inferSelect;
 export type InsertTurningPoint = typeof turningPoints.$inferInsert;
